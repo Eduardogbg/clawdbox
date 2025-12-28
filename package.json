@@ -1,0 +1,8 @@
+{
+  "name": "clawdbox",
+  "private": true,
+  "type": "module",
+  "workspaces": [
+    "packages/*"
+  ]
+}

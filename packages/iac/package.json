@@ -1,0 +1,26 @@
+{
+  "name": "@clawdbox/iac",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "alchemy": "bun run src/alchemy.run.ts",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "dependencies": {
+    "alchemy-effect": "link:alchemy-effect",
+    "effect": "^3.19.3"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4.20250805.0",
+    "@effect/platform": "^0.93.0",
+    "@effect/platform-node": "^0.103.0",
+    "@effect/vitest": "^0.27.0",
+    "@types/bun": "latest",
+    "dotenv": "^16.4.7",
+    "typescript": "^5.9.3",
+    "vitest": "^4.0.15"
+  }
+}

@@ -1,0 +1,2 @@
+- use effect and focus on dependency-injection and testable code. make dependencies layers when possible, when acquiring resources that could leak be sure to use resource-aware patterns such as (but not limited to) `acquireUseRelease`. prefer more functional code to loops, prefer formatting pipes as `pipe(...)` rather than `whatever.pipe(...)`
+- symlink: `./effect`
