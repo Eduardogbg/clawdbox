@@ -1,0 +1,19 @@
+{
+  "name": "@clawdbox/agent-container",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "description": "Claude Agent SDK container for Cloudflare Containers",
+  "scripts": {
+    "dev": "bun run --watch src/entrypoint.ts",
+    "build": "bun build src/entrypoint.ts --outdir dist",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "effect": "^3.19.3"
+  },
+  "devDependencies": {
+    "@types/bun": "latest",
+    "typescript": "^5.9.3"
+  }
+}
