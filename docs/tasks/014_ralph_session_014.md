@@ -20,6 +20,15 @@ This session focused on dependency updates, configuration improvements, and atte
 ### 3. Updated .gitignore
 - Added pattern to ignore `pnpm-lock.yaml` files (project uses bun.lock)
 
+### 4. Workspace Cleanup
+- Excluded `packages/repro-sdk-bug` from pnpm workspace (debug package with local dependencies)
+
+### 5. Fixed telegram-webhook wrangler.toml
+- Removed incorrect Durable Object binding (uses HTTP API via OPERATOR_URL instead)
+- Added proper OPERATOR_URL environment variable pointing to deployed operator
+- Updated to use `compatibility_flags = ["nodejs_compat"]` syntax
+- Added environment-specific configurations for production and staging
+
 ## Test Results
 All 156 tests pass:
 - IAC: 40 tests (2 skipped - R2 not enabled, Queue needs paid plan)
@@ -45,6 +54,9 @@ TypeCheck passes for all 5 packages.
 1. `3ca26aa` - refactor(agent-worker): update to @cloudflare/containers 0.0.31
 2. `f5b0288` - chore: add pnpm workspace config and root tsconfig
 3. `606e358` - chore: ignore pnpm-lock.yaml files (use bun.lock)
+4. `78594c7` - docs: add session 14 handoff and update TODO
+5. `4135be8` - chore: exclude repro-sdk-bug from pnpm workspace
+6. `4f10225` - fix(telegram-webhook): update wrangler.toml configuration
 
 ## Current Branch
 `ralph/alchemy-cloudflare-resources`
@@ -85,6 +97,7 @@ Based on docs/tasks/000_specs/008_IMPLEMENTATION.md:
 ## Key Files Modified This Session
 - `packages/agent-worker/src/agent-container-do.ts` - Container API update
 - `packages/agent-worker/package.json` - @cloudflare/containers version
+- `packages/telegram-webhook/wrangler.toml` - Fixed configuration
 - `pnpm-workspace.yaml` - New file
 - `tsconfig.json` - New file at root
 - `.gitignore` - Added pnpm-lock.yaml pattern

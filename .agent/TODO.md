@@ -47,6 +47,8 @@
 - [x] Add root tsconfig.json with project references
 - [x] Update .gitignore to exclude pnpm-lock.yaml files
 - [x] Write session handoff document
+- [x] Exclude repro-sdk-bug from pnpm workspace
+- [x] Fix telegram-webhook wrangler.toml (remove incorrect DO binding, add OPERATOR_URL)
 
 ## Ready for Future Sessions
 - [ ] Once Docker registry fixed: build and push agent-container
@@ -212,3 +214,5 @@ Likely requires Docker Desktop restart or network reconfiguration.
 2. chore: add pnpm workspace config and root tsconfig
 3. chore: ignore pnpm-lock.yaml files (use bun.lock)
 4. docs: add session 14 handoff document
+5. chore: exclude repro-sdk-bug from pnpm workspace
+6. fix(telegram-webhook): update wrangler.toml configuration
