@@ -13,6 +13,8 @@
 - [x] Added agent-container unit tests (23 tests)
   - Config schema validation tests (9 tests)
   - Permission hook tests (14 tests)
+- [x] Updated CI workflow to run all unit tests
+- [x] Added root test scripts (test, test:all, test:iac, test:telegram, test:agent)
 - [x] Reviewed and verified all component code quality
 
 ### Blocked/Deferred
