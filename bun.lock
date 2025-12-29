@@ -5,6 +5,7 @@
       "name": "clawdbox",
       "devDependencies": {
         "pathe": "^2.0.3",
+        "typescript": "^5.9.3",
       },
     },
     "packages/agent-container": {
@@ -80,8 +81,10 @@
       },
       "devDependencies": {
         "@cloudflare/workers-types": "^4.20250805.0",
+        "@effect/vitest": "^0.27.0",
         "@types/bun": "latest",
         "typescript": "^5.9.3",
+        "vitest": "^3.2.0",
         "wrangler": "^4.24.1",
       },
     },

@@ -1,12 +1,14 @@
 # Clawdbox TODO
 
-## Current Session: Ralph Session 009
+## Current Session: Ralph Session 010
 
 ### Completed This Session
-- [x] Verified all 33 tests passing
+- [x] Verified all tests passing (33 IAC + 10 Telegram = 43 total)
 - [x] Verified all typechecks pass
-- [x] Verified alchemy-effect fork integration is complete
-- [x] Created session 009 handoff document
+- [x] Added Telegram handler unit tests (10 tests)
+- [x] Updated telegram-webhook package.json with vitest dependencies
+- [x] Created vitest.config.ts for telegram-webhook package
+- [x] Reviewed and verified all component code quality
 
 ### Blocked/Deferred
 - [ ] Docker image build - 100% packet loss to Docker Hub
@@ -38,6 +40,7 @@
 - [x] Webhook handler with validation
 - [x] Bot commands: /task, /status, /help, /cancel
 - [x] Topic management (forum support)
+- [x] Unit tests for handler (10 tests)
 - [ ] Requires TELEGRAM_BOT_TOKEN (create via @BotFather)
 - [ ] Deploy and configure webhook URL
 
@@ -71,14 +74,15 @@ packages/
 ├── operator/               # Operator Worker + Durable Object
 ├── agent-container/        # Docker container code for Claude agents
 ├── agent-worker/           # Worker with Container DO
-└── telegram-webhook/       # Telegram Bot Worker
+└── telegram-webhook/       # Telegram Bot Worker (10 tests)
 ```
 
 ## Deployed Resources
 - [x] Operator Worker: https://clawdbox-operator.eduardogbg.workers.dev
 
-## Test Results (Session 009)
+## Test Results (Session 010)
 ```
+=== IAC Package (33 tests) ===
  ✓ test/operator.test.ts (2 tests)
  ✓ test/r2-bucket.test.ts (2 tests | 1 skipped)
  ✓ test/container.test.ts (3 tests)
@@ -86,8 +90,14 @@ packages/
  ✓ test/worker.test.ts (2 tests)
  ✓ test/secrets-store.test.ts (2 tests)
 
- Test Files  6 passed (6)
-      Tests  33 passed | 1 skipped (34)
+=== Telegram Package (10 tests) ===
+ ✓ test/handler.test.ts (10 tests)
+   - Command parsing (/start, /task, /help, unknown)
+   - Forum topic creation
+   - Permission callback handling (approve/deny)
+   - Non-command message handling
+
+ Total: 43 tests passed | 1 skipped (44)
 ```
 
 ## Known Issues
@@ -101,7 +111,45 @@ packages/
 ## Next Steps
 1. Wait for Docker Hub connectivity
 2. Enable R2 on Cloudflare dashboard
-3. Create Telegram bot via @BotFather
-4. Deploy agent-worker to Cloudflare
-5. Set AGENT_WORKER_URL in Operator
-6. Complete end-to-end integration test
+3. Create GitHub repo and push all code
+4. Create Telegram bot via @BotFather
+5. Deploy agent-worker to Cloudflare Containers
+
+## Environment Variables Required
+
+```bash
+CLOUDFLARE_API_TOKEN=xxx      # API token with account permissions
+CLOUDFLARE_ACCOUNT_ID=3a16620c57b98731f762586aeed4f25c
+TELEGRAM_BOT_TOKEN=xxx        # From @BotFather (not yet available)
+ANTHROPIC_API_KEY=xxx         # For agent containers
+GITHUB_PAT=xxx                # For private repo access
+```
+
+## API Endpoints (Operator)
+
+### Tasks
+- `POST /tasks` - Create task
+- `GET /tasks?status=<status>` - List tasks
+- `GET /tasks/:id` - Get task
+- `PATCH /tasks/:id/status` - Update task status
+- `POST /tasks/:id/spawn` - Spawn agent for task
+- `GET /tasks/:id/permissions` - Get pending permissions
+
+### Sessions
+- `POST /sessions` - Create session
+- `GET /sessions/:id` - Get session
+
+### Permissions
+- `POST /permissions` - Create permission (async)
+- `POST /permission` - Create + wait for resolution (sync, long-polling)
+- `GET /permissions/:id` - Get permission
+- `POST /permissions/:id/resolve` - Approve/deny permission
+
+### Agent Callbacks
+- `POST /session` - Report Claude session ID
+- `POST /complete` - Report task completion
+- `POST /error` - Report task error
+- `POST /stream` - Stream message to operator
+
+### Container
+- `POST /container-stopped` - Container stopped callback
