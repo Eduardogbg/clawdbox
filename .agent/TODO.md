@@ -1,11 +1,12 @@
 # Clawdbox Project TODO
 
 ## Session 11 Status
-- All 117 tests passing (IAC: 33, Telegram: 33, Agent-container: 23, Agent-worker: 28)
+- All 129 tests passing (IAC: 33, Telegram: 45, Agent-container: 23, Agent-worker: 28)
 - TypeCheck passes for all packages
 - Docker buildkit still has registry connectivity issues
 - No git remote configured
-- Added agent-worker unit tests this session
+- Added agent-worker unit tests (28 tests) this session
+- Added telegram-webhook worker tests (12 tests) this session
 
 ## Completed
 - [x] Fix alchemy-effect dependency to use local fork (tgz tarball)
@@ -112,10 +113,11 @@ packages/
  ✓ test/worker.test.ts (2 tests)
  ✓ test/secrets-store.test.ts (2 tests)
 
-=== Telegram Package (33 tests) ===
+=== Telegram Package (45 tests) ===
  ✓ test/handler.test.ts (10 tests)
  ✓ test/operator-client.test.ts (11 tests)
  ✓ test/telegram.test.ts (12 tests)
+ ✓ test/worker.test.ts (12 tests) - NEW
 
 === Agent Container Package (23 tests) ===
  ✓ test/config.test.ts (9 tests)
@@ -125,7 +127,7 @@ packages/
  ✓ test/agent-container-do.test.ts (18 tests)
  ✓ test/worker.test.ts (10 tests)
 
- Total: 117 tests passed | 1 skipped (118)
+ Total: 129 tests passed | 1 skipped (130)
 ```
 
 ## Alchemy-Effect Fork Details

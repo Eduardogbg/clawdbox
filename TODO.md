@@ -12,6 +12,9 @@
 - [x] Added agent-worker unit tests (28 tests)
   - AgentContainerDO tests (18 tests) - state management, lifecycle, HTTP handlers
   - Worker routing tests (10 tests) - path routing, DO forwarding, health check
+- [x] Added telegram-webhook worker tests (12 tests)
+  - Health/webhook/setup endpoint tests
+  - Webhook secret validation tests
 
 ### Blocked/Deferred
 - [ ] Docker image build - Docker buildkit cannot fetch metadata from docker.io
@@ -81,7 +84,7 @@ packages/
 ├── operator/               # Operator Worker + Durable Object
 ├── agent-container/        # Claude Agent Container (23 tests)
 ├── agent-worker/           # Worker with Container DO (28 tests)
-└── telegram-webhook/       # Telegram Bot Worker (33 tests)
+└── telegram-webhook/       # Telegram Bot Worker (45 tests)
 ```
 
 ## Deployed Resources
@@ -97,10 +100,11 @@ packages/
  ✓ test/worker.test.ts (2 tests)
  ✓ test/secrets-store.test.ts (2 tests)
 
-=== Telegram Package (33 tests) ===
+=== Telegram Package (45 tests) ===
  ✓ test/handler.test.ts (10 tests)
  ✓ test/operator-client.test.ts (11 tests)
  ✓ test/telegram.test.ts (12 tests)
+ ✓ test/worker.test.ts (12 tests) - NEW
 
 === Agent Container Package (23 tests) ===
  ✓ test/config.test.ts (9 tests)
@@ -110,7 +114,7 @@ packages/
  ✓ test/agent-container-do.test.ts (18 tests)
  ✓ test/worker.test.ts (10 tests)
 
- Total: 117 tests passed | 1 skipped (118)
+ Total: 129 tests passed | 1 skipped (130)
 ```
 
 ## Known Issues
