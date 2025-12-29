@@ -1,9 +1,9 @@
 # Clawdbox Project TODO
 
-## Session 13 Status
+## Session 14 Status
 - All 156 tests passing (IAC: 40, Telegram: 45, Agent-container: 43, Agent-worker: 28)
 - TypeCheck passes for all packages
-- Fixed vitest version mismatch (@effect/vitest requires ^3.2.0, not ^4.0.0)
+- Updated @cloudflare/containers to 0.0.31 (breaking API changes addressed)
 - Docker buildkit still has registry connectivity issues
 - No git remote configured
 
@@ -30,6 +30,7 @@
 - [x] Verify alchemy-effect fork integration
 - [x] Add comprehensive unit tests for all packages
 - [x] Fix vitest version mismatch for @effect/vitest (Session 13)
+- [x] Update @cloudflare/containers to 0.0.31 (Session 14)
 
 ## Blocked
 - [ ] Test R2 bucket deployment (R2 not enabled in CF dashboard)
@@ -39,10 +40,13 @@
 - [ ] Git push (no remote configured)
 
 ## Completed This Session
-- [x] Try Docker build again with different network options - still blocked
-- [x] Explore Cloudflare Containers beta - documented in CLOUDFLARE.md
-- [x] Review IaC configuration for containers - wrangler.toml is correct
-- [x] Add comprehensive Cloudflare Containers documentation
+- [x] Update @cloudflare/containers to latest version (0.0.31)
+- [x] Refactor agent-container-do.ts for new Container API
+- [x] Verify all tests still pass
+- [x] Add pnpm-workspace.yaml for proper pnpm workspace support
+- [x] Add root tsconfig.json with project references
+- [x] Update .gitignore to exclude pnpm-lock.yaml files
+- [x] Write session handoff document
 
 ## Ready for Future Sessions
 - [ ] Once Docker registry fixed: build and push agent-container
@@ -118,7 +122,7 @@ packages/
 - Queues: NOT ENABLED (requires paid plan)
 - Containers: Beta feature (needs special configuration)
 
-## Test Results (Session 13)
+## Test Results (Session 14)
 ```
 === IAC Package (40 tests) ===
  ✓ test/operator.test.ts (2 tests)
@@ -195,7 +199,7 @@ Exports tested:
 ### Container
 - `POST /container-stopped` - Container stopped callback
 
-## Docker Issues (Session 12-13)
+## Docker Issues (Session 12-14)
 Docker buildkit cannot fetch metadata from docker.io even when:
 - Images exist locally (alpine:3.17 available)
 - Network ping works to hub.docker.com
@@ -203,7 +207,8 @@ Docker buildkit cannot fetch metadata from docker.io even when:
 
 Likely requires Docker Desktop restart or network reconfiguration.
 
-## Commits This Session (13)
-1. Fix vitest version mismatch for @effect/vitest compatibility
-2. Add Cloudflare Containers reference documentation
-3. Fix instance type comment in agent-worker wrangler.toml
+## Commits This Session (14)
+1. refactor(agent-worker): update to @cloudflare/containers 0.0.31
+2. chore: add pnpm workspace config and root tsconfig
+3. chore: ignore pnpm-lock.yaml files (use bun.lock)
+4. docs: add session 14 handoff document
