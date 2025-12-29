@@ -1,19 +1,19 @@
 # Clawdbox TODO
 
-## Current Session: Ralph Session 004
+## Current Session: Ralph Session 005
 
 ### Completed This Session
-- [x] Fixed vitest version for @effect/vitest compatibility (^3.2.0)
-- [x] All IaC tests passing (18 pass, 1 skip)
-- [x] Added root typecheck and test scripts
-- [x] Added database migration for repo_url and branch columns
-- [x] Created Operator E2E tests (8 tests passing)
-- [x] Redeployed Operator with migration support
+- [x] Fixed root package.json scripts (typecheck, test)
+- [x] Added synchronous `/permission` endpoint with long-polling (5min timeout)
+- [x] Updated agent-container to use correct permission endpoint
+- [x] Deployed Operator with new endpoints
+- [x] Added comprehensive E2E tests for session/permission flow (28 tests passing)
 
 ### Blocked/Deferred
 - [ ] Docker image build - 100% packet loss to Docker Hub
 - [ ] R2 bucket testing - needs R2 enabled on Cloudflare dashboard
 - [ ] Telegram integration - needs bot token from @BotFather
+- [ ] Git push - no remote configured
 
 ---
 
@@ -33,6 +33,7 @@
   - Agent reporting endpoints (/session, /complete, /error)
   - Container spawning endpoint (/tasks/:id/spawn)
   - Container stopped callback (/container-stopped)
+  - **NEW: Synchronous /permission endpoint with long-polling**
 - [x] Telegram Webhook Worker (packages/telegram-webhook)
   - Integrated with Operator via OperatorClient
   - /task, /status, /help commands
@@ -48,7 +49,7 @@
 ## Phase 4: Agent Runtime - MOSTLY COMPLETE
 - [x] Dockerfile for agent container
 - [x] Agent entrypoint using Claude Agent SDK
-- [x] Permission hook for tool use approval
+- [x] Permission hook for tool use approval (uses /permission endpoint)
 - [x] Container build CI workflow
 - [x] Agent Worker with Container DO (packages/agent-worker)
   - AgentContainerDO extends @cloudflare/containers Container
@@ -56,13 +57,13 @@
   - Lifecycle callbacks: onStart, onStop, onError
   - SQLite state tracking
 - [x] Operator integration for spawning containers
-- [ ] Build and test Docker image locally (in progress)
+- [ ] Build and test Docker image locally (blocked: Docker Hub unreachable)
 - [ ] Test actual container deployment with Docker
 
 ## Phase 5: Full Integration - IN PROGRESS
 - [x] Wire Operator to Agent Worker for spawning
-- [ ] Complete permission flow (Telegram -> Operator DO -> Container)
-- [ ] R2 repo snapshot/restore
+- [x] Permission flow (Agent -> Operator DO -> Long-poll -> Resolution)
+- [ ] R2 repo snapshot/restore (needs R2 enabled)
 - [ ] GitHub integration
 - [ ] Deploy agent-worker and test
 
@@ -75,7 +76,7 @@
 ## Package Structure
 ```
 packages/
-├── iac/                    # Infrastructure as Code
+├── iac/                    # Infrastructure as Code (18 tests)
 ├── operator/               # Operator Worker + Durable Object
 │   └── wrangler.toml       # Has AGENT_WORKER_URL config
 ├── agent-container/        # Docker container code for Claude agents
@@ -90,6 +91,20 @@ packages/
 
 ## Deployed Resources
 - [x] Operator Worker: https://clawdbox-operator.eduardogbg.workers.dev
+  - Version: 2bdabcec-7253-41d3-8c8f-2589e0ce5cf6
+
+## Test Results (Session 005)
+```
+ ✓ test/operator.test.ts (2 tests)
+ ✓ test/r2-bucket.test.ts (2 tests | 1 skipped)
+ ✓ test/container.test.ts (3 tests)
+ ✓ test/operator-e2e.test.ts (18 tests)  <- NEW tests added
+ ✓ test/worker.test.ts (2 tests)
+ ✓ test/secrets-store.test.ts (2 tests)
+
+ Test Files  6 passed (6)
+      Tests  28 passed | 1 skipped (29)
+```
 
 ## Known Issues
 - Cloudflare SDK bug: SecretsStore.create() sends array but API expects object
@@ -97,10 +112,10 @@ packages/
   - Local fork has fix: forks/cloudflare-typescript
 - R2 not enabled on account (error 10042)
 - Container testing requires Docker running locally + wrangler for deployment
-- Docker network can be slow for image pulls
+- Docker network can be slow for image pulls (currently 100% packet loss)
 
 ## Next Steps
-1. Complete Docker image build once network permits
+1. Wait for Docker Hub connectivity
 2. Enable R2 on Cloudflare dashboard
 3. Create Telegram bot via @BotFather
 4. Deploy agent-worker to Cloudflare
