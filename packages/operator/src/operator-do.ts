@@ -198,6 +198,12 @@ export class OperatorDO extends DurableObject<Env> {
         return this.handleResolvePermission(id, request);
       }
 
+      // Get pending permissions for a task
+      if (url.pathname.match(/^\/tasks\/[^/]+\/permissions$/) && method === "GET") {
+        const taskId = url.pathname.split("/")[2];
+        return this.handleGetTaskPermissions(taskId);
+      }
+
       if (url.pathname === "/stream" && method === "POST") {
         return this.handleStreamMessage(request);
       }
@@ -574,6 +580,29 @@ export class OperatorDO extends DurableObject<Env> {
     const permission = rowToPermission(updatedRow!);
 
     return new Response(JSON.stringify(permission), {
+      headers: { "Content-Type": "application/json" },
+    });
+  }
+
+  /**
+   * Get pending permissions for a task (for Telegram to display)
+   */
+  private handleGetTaskPermissions(taskId: string): Response {
+    // Get session for this task
+    const sessionRow = this.ctx.storage.sql.exec(SQL.GET_SESSION_BY_TASK, taskId).one();
+    if (!sessionRow) {
+      return new Response(JSON.stringify({ permissions: [] }), {
+        headers: { "Content-Type": "application/json" },
+      });
+    }
+
+    const session = rowToSession(sessionRow);
+
+    // Get pending permissions for this session
+    const rows = this.ctx.storage.sql.exec(SQL.GET_PENDING_PERMISSIONS, session.id).toArray();
+    const permissions = rows.map(rowToPermission);
+
+    return new Response(JSON.stringify({ permissions, taskId, sessionId: session.id }), {
       headers: { "Content-Type": "application/json" },
     });
   }

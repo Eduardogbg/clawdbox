@@ -207,6 +207,30 @@ export const createOperatorClient = (operatorUrl: string) => ({
         }),
       catch: (e) => new Error(`Failed to send stream message: ${e}`),
     }),
+
+  /**
+   * Get pending permissions for a task
+   */
+  getTaskPermissions: (taskId: string) =>
+    Effect.gen(function* () {
+      const response = yield* Effect.tryPromise({
+        try: () => fetch(`${operatorUrl}/tasks/${taskId}/permissions`),
+        catch: (e) => new Error(`Failed to get task permissions: ${e}`),
+      });
+
+      if (!response.ok) {
+        return yield* Effect.fail(
+          new Error(`Failed to get task permissions: ${response.status}`),
+        );
+      }
+
+      const json = yield* Effect.tryPromise(() => response.json());
+      const data = json as { permissions: unknown[]; taskId: string; sessionId?: string };
+      const permissions = yield* Effect.forEach(data.permissions, (p) =>
+        Schema.decodeUnknown(PermissionResponse)(p),
+      );
+      return { permissions, taskId: data.taskId, sessionId: data.sessionId };
+    }),
 });
 
 export type OperatorClient = ReturnType<typeof createOperatorClient>;
