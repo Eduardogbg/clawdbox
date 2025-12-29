@@ -34,6 +34,9 @@ jobs:
       - name: TypeCheck packages/telegram-webhook
         run: cd packages/telegram-webhook && bun run typecheck
 
+      - name: TypeCheck packages/agent-worker
+        run: cd packages/agent-worker && bun run typecheck
+
   test-unit:
     name: Unit Tests
     runs-on: ubuntu-latest

@@ -21,12 +21,19 @@ on:
         required: false
         default: true
         type: boolean
+      deploy_agent_worker:
+        description: 'Deploy Agent Worker (requires Docker for container image)'
+        required: false
+        default: false
+        type: boolean
   push:
     branches:
       - main
     paths:
       - 'packages/operator/**'
       - 'packages/telegram-webhook/**'
+      - 'packages/agent-worker/**'
+      - 'packages/agent-container/**'
 
 jobs:
   deploy-operator:
@@ -78,6 +85,37 @@ jobs:
         run: |
           cd packages/telegram-webhook
           npx wrangler deploy ${{ inputs.environment == 'production' && '--env production' || '--env staging' }}
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+
+  deploy-agent-worker:
+    name: Deploy Agent Worker
+    runs-on: ubuntu-latest
+    if: ${{ inputs.deploy_agent_worker }}
+    environment: ${{ inputs.environment || 'staging' }}
+    needs: deploy-operator
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install dependencies
+        run: bun install
+
+      - name: Build agent-container
+        run: cd packages/agent-container && bun run build
+
+      - name: TypeCheck
+        run: cd packages/agent-worker && bun run typecheck
+
+      # Wrangler will build and push the Docker image automatically
+      - name: Deploy Agent Worker with Container
+        run: |
+          cd packages/agent-worker
+          npx wrangler deploy
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
