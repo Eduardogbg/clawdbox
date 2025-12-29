@@ -6,8 +6,12 @@
 - [x] Fixed root package.json scripts (typecheck, test)
 - [x] Added synchronous `/permission` endpoint with long-polling (5min timeout)
 - [x] Updated agent-container to use correct permission endpoint
-- [x] Deployed Operator with new endpoints
 - [x] Added comprehensive E2E tests for session/permission flow (28 tests passing)
+- [x] Created ARCHITECTURE.md documentation
+- [x] Implemented `/status` command in Telegram (queries Operator)
+- [x] Added GET `/tasks/:id/permissions` for pending permissions
+- [x] Added `getTaskPermissions` to operator client
+- [x] Deployed Operator with all new endpoints (v: 6474d407)
 
 ### Blocked/Deferred
 - [ ] Docker image build - 100% packet loss to Docker Hub
