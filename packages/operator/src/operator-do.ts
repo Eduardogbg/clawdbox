@@ -165,6 +165,19 @@ export class OperatorDO extends DurableObject<Env> {
         return this.handleStreamMessage(request);
       }
 
+      // Agent reporting endpoints
+      if (url.pathname === "/session" && method === "POST") {
+        return this.handleReportSession(request);
+      }
+
+      if (url.pathname === "/complete" && method === "POST") {
+        return this.handleReportComplete(request);
+      }
+
+      if (url.pathname === "/error" && method === "POST") {
+        return this.handleReportError(request);
+      }
+
       return new Response(JSON.stringify({ error: "Not found" }), {
         status: 404,
         headers: { "Content-Type": "application/json" },
@@ -532,6 +545,96 @@ export class OperatorDO extends DurableObject<Env> {
     // TODO: In the future, forward this to connected WebSocket clients
     // For now, just log it
     console.log(`[Stream][${taskId}][${type ?? "text"}]: ${text.substring(0, 100)}`);
+
+    return new Response(JSON.stringify({ received: true }), {
+      headers: { "Content-Type": "application/json" },
+    });
+  }
+
+  /**
+   * Handle session ID report from agent (for resume capability)
+   */
+  private async handleReportSession(request: Request): Promise<Response> {
+    const body = await request.json();
+    const { taskId, sessionId } = body as {
+      taskId: string;
+      sessionId: string;
+    };
+
+    if (!taskId || !sessionId) {
+      return new Response(JSON.stringify({ error: "taskId and sessionId are required" }), {
+        status: 400,
+        headers: { "Content-Type": "application/json" },
+      });
+    }
+
+    // Update the session with the Claude session ID
+    this.ctx.storage.sql.exec(SQL.UPDATE_SESSION_BY_TASK, sessionId, now(), taskId);
+
+    // Also update session status to running
+    this.ctx.storage.sql.exec(SQL.UPDATE_SESSION_STATUS_BY_TASK, "running", now(), taskId);
+
+    console.log(`[Session][${taskId}]: Claude session ID: ${sessionId}`);
+
+    return new Response(JSON.stringify({ received: true }), {
+      headers: { "Content-Type": "application/json" },
+    });
+  }
+
+  /**
+   * Handle task completion report from agent
+   */
+  private async handleReportComplete(request: Request): Promise<Response> {
+    const body = await request.json();
+    const { taskId, result } = body as {
+      taskId: string;
+      result: unknown;
+    };
+
+    if (!taskId) {
+      return new Response(JSON.stringify({ error: "taskId is required" }), {
+        status: 400,
+        headers: { "Content-Type": "application/json" },
+      });
+    }
+
+    // Update task status to completed
+    this.ctx.storage.sql.exec(SQL.UPDATE_TASK_STATUS, "completed", now(), taskId);
+
+    // Update session status to stopped
+    this.ctx.storage.sql.exec(SQL.UPDATE_SESSION_STATUS_BY_TASK, "stopped", now(), taskId);
+
+    console.log(`[Complete][${taskId}]: Task completed`, result);
+
+    return new Response(JSON.stringify({ received: true }), {
+      headers: { "Content-Type": "application/json" },
+    });
+  }
+
+  /**
+   * Handle error report from agent
+   */
+  private async handleReportError(request: Request): Promise<Response> {
+    const body = await request.json();
+    const { taskId, error } = body as {
+      taskId: string;
+      error: string;
+    };
+
+    if (!taskId) {
+      return new Response(JSON.stringify({ error: "taskId is required" }), {
+        status: 400,
+        headers: { "Content-Type": "application/json" },
+      });
+    }
+
+    // Update task status to failed
+    this.ctx.storage.sql.exec(SQL.UPDATE_TASK_STATUS, "failed", now(), taskId);
+
+    // Update session status to stopped
+    this.ctx.storage.sql.exec(SQL.UPDATE_SESSION_STATUS_BY_TASK, "stopped", now(), taskId);
+
+    console.error(`[Error][${taskId}]: ${error}`);
 
     return new Response(JSON.stringify({ received: true }), {
       headers: { "Content-Type": "application/json" },

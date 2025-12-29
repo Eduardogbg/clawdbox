@@ -120,3 +120,14 @@ export const EXPIRE_OLD_PERMISSIONS = `
 UPDATE permissions SET status = 'expired', resolved_at = ?
 WHERE status = 'pending' AND created_at < ?
 `;
+
+// Update session by task ID (for agent reporting)
+export const UPDATE_SESSION_BY_TASK = `
+UPDATE sessions SET claude_session_id = ?, updated_at = ?
+WHERE task_id = ? AND (status = 'starting' OR status = 'running')
+`;
+
+export const UPDATE_SESSION_STATUS_BY_TASK = `
+UPDATE sessions SET status = ?, updated_at = ?
+WHERE task_id = ? AND (status = 'starting' OR status = 'running')
+`;
