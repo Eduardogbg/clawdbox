@@ -1,0 +1,23 @@
+{
+  "compilerOptions": {
+    "target": "ESNext",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "strict": true,
+    "noEmit": true,
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "lib": ["ESNext"],
+    "types": ["bun-types"]
+  },
+  "references": [
+    { "path": "./packages/iac" },
+    { "path": "./packages/operator" },
+    { "path": "./packages/telegram-webhook" },
+    { "path": "./packages/agent-container" },
+    { "path": "./packages/agent-worker" }
+  ],
+  "files": []
+}
