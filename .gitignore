@@ -1,14 +1,14 @@
 # symlinks
 claude-army
 alchemy
-alchemy-effect
 effect
 
-# forks
+# forks (except submodules)
 forks/*
+!forks/alchemy-effect
 
 # iac state
 **/.alchemy/state
 
 **/node_modules
-**/.envforks/
+**/.env

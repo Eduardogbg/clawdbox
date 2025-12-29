@@ -1,0 +1,4 @@
+[submodule "forks/alchemy-effect"]
+	path = forks/alchemy-effect
+	url = https://github.com/Eduardogbg/alchemy-effect
+	branch = feat/cloudflare-resources
