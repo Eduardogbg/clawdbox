@@ -8,6 +8,9 @@
 - [x] Started Docker Desktop
 - [x] Created container build/push CI workflow (.github/workflows/container.yml)
 - [x] Updated Dockerfile to not require lockfile
+- [x] Created agent-worker package with Container DO
+- [x] Implemented AgentContainerDO extending @cloudflare/containers
+- [x] Created container test script (scripts/test-local.sh)
 
 ### In Progress
 - [ ] Docker build of agent-container (network slow, image pull taking time)
@@ -45,20 +48,40 @@
 - [x] Agent entrypoint using Claude Agent SDK
 - [x] Permission hook for tool use approval
 - [x] Container build CI workflow
+- [x] Agent Worker with Container DO (packages/agent-worker)
+  - AgentContainerDO extends @cloudflare/containers Container
+  - HTTP API: /start, /stop, /status, /health
+  - Lifecycle callbacks: onStart, onStop, onError
+  - SQLite state tracking
 - [ ] Build and test Docker image locally
-- [ ] Wire up container spawning from Operator
 - [ ] Test actual container deployment with Docker
 
 ## Phase 5: Full Integration - PENDING
 - [ ] Complete permission flow (Telegram -> Operator DO -> Container)
 - [ ] R2 repo snapshot/restore
 - [ ] GitHub integration
+- [ ] Wire Operator to Agent Worker for spawning
 
 ## CI/CD
 - [x] GitHub Actions CI for typecheck and tests (ci.yml)
 - [x] Deployment workflow for Workers (deploy.yml)
 - [x] Container build/push workflow (container.yml)
-- [ ] Add Cloudflare Containers deployment workflow
+- [ ] Add agent-worker to deployment workflow
+
+## Package Structure
+```
+packages/
+├── iac/                    # Infrastructure as Code
+├── operator/               # Operator Worker + Durable Object
+├── agent-container/        # Docker container code for Claude agents
+├── agent-worker/           # Worker with Container DO (NEW)
+│   ├── src/
+│   │   ├── index.ts        # Worker entry point
+│   │   ├── agent-container-do.ts  # Container DO class
+│   │   └── types.ts
+│   └── wrangler.toml       # Container configuration
+└── telegram-webhook/       # Telegram Bot Worker
+```
 
 ## Deployed Resources
 - [x] Operator Worker: https://clawdbox-operator.eduardogbg.workers.dev
@@ -69,10 +92,12 @@
   - Local fork has fix: forks/cloudflare-typescript
 - R2 not enabled on account (error 10042)
 - Container testing requires Docker running locally + wrangler for deployment
+- Docker network can be slow for image pulls
 
 ## Next Steps
 1. Enable R2 on Cloudflare dashboard
 2. Create Telegram bot via @BotFather
-3. Build and test Docker container locally
-4. Deploy container to Cloudflare
-5. Complete end-to-end integration test
+3. Build Docker container locally (when network permits)
+4. Deploy agent-worker to Cloudflare
+5. Wire Operator to spawn containers via agent-worker
+6. Complete end-to-end integration test

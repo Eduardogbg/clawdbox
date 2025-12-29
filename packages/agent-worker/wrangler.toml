@@ -1,0 +1,32 @@
+# Agent Worker with Container DO
+# This Worker hosts the AgentContainerDO that controls Claude agent containers
+
+name = "clawdbox-agent-worker"
+main = "src/index.ts"
+compatibility_date = "2024-12-01"
+compatibility_flags = ["nodejs_compat"]
+
+# Enable workers.dev subdomain for direct access
+workers_dev = true
+
+# Container configuration
+[[containers]]
+class_name = "AgentContainerDO"
+image = "../agent-container/Dockerfile"
+instance_type = "basic"  # 1/4 vCPU, 1GB-4GB RAM
+max_instances = 5
+
+# Durable Objects configuration for container
+[[durable_objects.bindings]]
+name = "AGENT_CONTAINER"
+class_name = "AgentContainerDO"
+
+# SQLite storage for Container DOs (required for containers)
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["AgentContainerDO"]
+
+# Secrets Store binding (for accessing API keys)
+# [[secrets_stores.bindings]]
+# binding = "SECRETS"
+# store = "clawdbox-secrets"
