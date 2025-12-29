@@ -34,7 +34,9 @@ const waitForBucketToBeDeleted = Effect.fn(function* (
 });
 
 describe("R2 Bucket Integration", () => {
-  it.effect(
+  // NOTE: R2 needs to be enabled on the Cloudflare dashboard
+  // Error: 10042 - Please enable R2 through the Cloudflare Dashboard
+  it.effect.skip(
     "creates, verifies, and deletes R2 bucket",
     () =>
       Effect.gen(function* () {
