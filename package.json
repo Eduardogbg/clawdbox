@@ -4,5 +4,8 @@
   "type": "module",
   "workspaces": [
     "packages/*"
-  ]
+  ],
+  "devDependencies": {
+    "pathe": "^2.0.3"
+  }
 }
