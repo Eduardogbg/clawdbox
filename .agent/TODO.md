@@ -1,12 +1,12 @@
 # Clawdbox Project TODO
 
-## Session 11 Status
-- All 129 tests passing (IAC: 33, Telegram: 45, Agent-container: 23, Agent-worker: 28)
+## Session 12 Status
+- All 154 tests passing (IAC: 40, Telegram: 45, Agent-container: 43, Agent-worker: 28)
 - TypeCheck passes for all packages
 - Docker buildkit still has registry connectivity issues
 - No git remote configured
-- Added agent-worker unit tests (28 tests) this session
-- Added telegram-webhook worker tests (12 tests) this session
+- Added D1, KV, Queue integration tests this session
+- Added repo logic unit tests (20 new tests)
 
 ## Completed
 - [x] Fix alchemy-effect dependency to use local fork (tgz tarball)
@@ -15,6 +15,8 @@
 - [x] Create integration tests for Cloudflare resources
 - [x] Test Secrets Store deployment via IaC (PASSED!)
 - [x] Test Worker deployment via IaC (PASSED!)
+- [x] Test D1 Database deployment via IaC (PASSED!)
+- [x] Test KV Namespace deployment via IaC (PASSED!)
 - [x] Create packages/agent-container structure (Dockerfile, entrypoint, permission hooks)
 - [x] Create packages/telegram-webhook (Telegram Bot API, handler, wrangler config)
 - [x] Set up CI/CD workflows (.github/workflows/ci.yml, deploy.yml, container.yml)
@@ -31,6 +33,7 @@
 
 ## Blocked
 - [ ] Test R2 bucket deployment (R2 not enabled in CF dashboard)
+- [ ] Test Queue deployment (Requires Workers Paid plan)
 - [ ] Container deployment testing (Docker buildkit registry timeout)
 - [ ] Telegram Bot integration (bot token not available)
 - [ ] Git push (no remote configured)
@@ -47,9 +50,12 @@
 packages/
 ├── iac/                    # Infrastructure as Code
 │   ├── src/alchemy.run.ts  # Main IaC entrypoint
-│   └── test/               # Integration tests (6 files, 33 tests)
+│   └── test/               # Integration tests (9 files, 40 tests)
 │       ├── secrets-store.test.ts (PASS)
 │       ├── worker.test.ts (PASS)
+│       ├── d1.test.ts (PASS)
+│       ├── kv.test.ts (PASS)
+│       ├── queue.test.ts (SKIPPED - paid plan)
 │       ├── r2-bucket.test.ts (SKIPPED - R2 not enabled)
 │       ├── operator.test.ts (PASS)
 │       ├── container.test.ts (PASS - local Docker works)
@@ -101,44 +107,55 @@ packages/
 - R2: NOT ENABLED (needs dashboard activation)
 - Secrets Store: ENABLED (test passes)
 - Workers: ENABLED (test passes)
+- D1: ENABLED (test passes)
+- KV: ENABLED (test passes)
+- Queues: NOT ENABLED (requires paid plan)
 - Containers: Beta feature (needs special configuration)
 
-## Test Results (Session 11)
+## Test Results (Session 12)
 ```
-=== IAC Package (33 tests) ===
+=== IAC Package (40 tests) ===
  ✓ test/operator.test.ts (2 tests)
  ✓ test/r2-bucket.test.ts (2 tests | 1 skipped)
  ✓ test/container.test.ts (3 tests)
  ✓ test/operator-e2e.test.ts (23 tests)
  ✓ test/worker.test.ts (2 tests)
  ✓ test/secrets-store.test.ts (2 tests)
+ ✓ test/d1.test.ts (2 tests) - NEW
+ ✓ test/kv.test.ts (2 tests) - NEW
+ ✓ test/queue.test.ts (2 tests | 1 skipped) - NEW
 
 === Telegram Package (45 tests) ===
  ✓ test/handler.test.ts (10 tests)
  ✓ test/operator-client.test.ts (11 tests)
  ✓ test/telegram.test.ts (12 tests)
- ✓ test/worker.test.ts (12 tests) - NEW
+ ✓ test/worker.test.ts (12 tests)
 
-=== Agent Container Package (23 tests) ===
+=== Agent Container Package (43 tests) ===
  ✓ test/config.test.ts (9 tests)
  ✓ test/permission.test.ts (14 tests)
+ ✓ test/repo.test.ts (20 tests) - NEW
 
-=== Agent Worker Package (28 tests) - NEW ===
+=== Agent Worker Package (28 tests) ===
  ✓ test/agent-container-do.test.ts (18 tests)
  ✓ test/worker.test.ts (10 tests)
 
- Total: 129 tests passed | 1 skipped (130)
+ Total: 154 tests passed | 2 skipped (156)
 ```
 
 ## Alchemy-Effect Fork Details
 Location: `forks/alchemy-effect/alchemy-effect/`
 Consumed via: `alchemy-effect-0.6.0.tgz` (tarball in lib/)
 
-Exports added:
-- `./test` - Test utilities
-- `./cloudflare/secrets-store` - Secrets Store resource
-- `./cloudflare/container` - Container resource
-- CloudflareApi exposed from `./cloudflare`
+Exports tested:
+- `./cloudflare` - Main cloudflare module
+- `Cloudflare.SecretsStore.Store` - Secrets Store resource (PASS)
+- `Cloudflare.Worker.serve` - Worker resource (PASS)
+- `Cloudflare.D1.Database` - D1 Database resource (PASS)
+- `Cloudflare.KV.Namespace` - KV Namespace resource (PASS)
+- `Cloudflare.Queue.Queue` - Queue resource (PASS but needs paid plan)
+- `Cloudflare.R2.Bucket` - R2 Bucket resource (needs R2 enabled)
+- `Cloudflare.Container` - Container resource (needs Docker)
 
 ## Deployed Resources
 - **Operator Worker**: https://clawdbox-operator.eduardogbg.workers.dev
@@ -172,10 +189,14 @@ Exports added:
 ### Container
 - `POST /container-stopped` - Container stopped callback
 
-## Docker Issues (Session 11)
+## Docker Issues (Session 12)
 Docker buildkit cannot fetch metadata from docker.io even when:
 - Images exist locally (alpine:3.17 available)
 - Network ping works to hub.docker.com
 - Various flags tried: --pull=false, --no-cache, DOCKER_BUILDKIT=0
 
 Likely requires Docker Desktop restart or network reconfiguration.
+
+## Commits This Session
+1. `a04b442` - test(iac): add D1, KV, and Queue integration tests
+2. `d6c3f70` - test(agent-container): add repo logic unit tests

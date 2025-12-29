@@ -19,8 +19,27 @@ const Secrets = Cloudflare.SecretsStore.Store("Secrets", {
 // R2 Storage
 // =============================================================================
 // Stores git repository snapshots, artifacts, and session data
+// NOTE: R2 requires activation in the Cloudflare dashboard before use
 const Storage = Cloudflare.R2.Bucket("Storage", {
   name: "clawdbox-storage",
+});
+
+// =============================================================================
+// KV Namespace
+// =============================================================================
+// Key-Value store for caching and quick lookups
+const Cache = Cloudflare.KV.Namespace("Cache", {
+  title: "clawdbox-cache",
+});
+
+// =============================================================================
+// D1 Database
+// =============================================================================
+// SQLite database for analytics and metadata
+// Note: Primary task/session storage is in Durable Object SQLite,
+// D1 is for cross-worker analytics and reporting
+const Analytics = Cloudflare.D1.Database("Analytics", {
+  name: "clawdbox-analytics",
 });
 
 // =============================================================================
@@ -55,6 +74,7 @@ export default defineStack({
       account: getAccountId(),
     },
   })),
-  resources: [Secrets, Storage],
+  // Note: R2 (Storage) excluded until enabled in CF dashboard
+  resources: [Secrets, Cache, Analytics],
   providers: Cloudflare.providers(),
 });
