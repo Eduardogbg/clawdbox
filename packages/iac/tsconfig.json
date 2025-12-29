@@ -13,17 +13,7 @@
     "declarationMap": true,
     "sourceMap": true,
     "lib": ["ESNext"],
-    "types": ["bun-types", "@cloudflare/workers-types"],
-    "baseUrl": ".",
-    "paths": {
-      "alchemy-effect": ["../../node_modules/alchemy-effect/src/index.ts"],
-      "alchemy-effect/cloudflare": ["../../node_modules/alchemy-effect/src/cloudflare/index.ts"],
-      "alchemy-effect/cloudflare/r2": ["../../node_modules/alchemy-effect/src/cloudflare/r2/index.ts"],
-      "alchemy-effect/cloudflare/kv": ["../../node_modules/alchemy-effect/src/cloudflare/kv/index.ts"],
-      "alchemy-effect/cloudflare/durable-object": ["../../node_modules/alchemy-effect/src/cloudflare/durable-object/index.ts"],
-      "alchemy-effect/cloudflare/secrets-store": ["../../node_modules/alchemy-effect/src/cloudflare/secrets-store/index.ts"],
-      "alchemy-effect/cloudflare/worker": ["../../node_modules/alchemy-effect/src/cloudflare/worker/index.ts"]
-    }
+    "types": ["bun-types", "@cloudflare/workers-types"]
   },
   "include": ["src/**/*.ts", "test/**/*.ts"],
   "exclude": ["node_modules"]

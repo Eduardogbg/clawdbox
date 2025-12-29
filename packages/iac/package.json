@@ -10,7 +10,7 @@
     "test:watch": "vitest"
   },
   "dependencies": {
-    "alchemy-effect": "link:alchemy-effect",
+    "alchemy-effect": "../../forks/alchemy-effect/alchemy-effect/alchemy-effect-0.6.0.tgz",
     "effect": "^3.19.3"
   },
   "devDependencies": {

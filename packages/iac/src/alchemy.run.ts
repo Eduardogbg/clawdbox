@@ -36,11 +36,23 @@ const Operator = Cloudflare.DurableObject.Namespace("Operator", {
 // =============================================================================
 // Stack Definition
 // =============================================================================
+// Get account ID from environment, or throw at runtime if not set
+const getAccountId = (): string => {
+  const accountId = process.env.CLOUDFLARE_ACCOUNT_ID;
+  if (!accountId) {
+    throw new Error(
+      "CLOUDFLARE_ACCOUNT_ID environment variable is required. " +
+        "Set it to your Cloudflare account ID."
+    );
+  }
+  return accountId;
+};
+
 export default defineStack({
   name: "clawdbox",
   stages: defineStages((stage) => ({
     cloudflare: {
-      account: process.env.CLOUDFLARE_ACCOUNT_ID,
+      account: getAccountId(),
     },
   })),
   resources: [Secrets, Storage],
