@@ -126,13 +126,24 @@ Each task runs in its own thread where you can:
 
 /task <description> - Create a new coding task
 /status - Check your active tasks
+/cancel <task_id> - Cancel an active task
 /help - Show this help message
 
 In a task thread:
 • Send messages to provide more context
-• Use buttons to approve/deny changes
-• Say "cancel" to stop the current task`,
+• Use buttons to approve/deny changes`,
         });
+        break;
+
+      case "/cancel":
+        if (!arg) {
+          yield* telegram.sendMessage({
+            chat_id: chatId,
+            text: "Please provide a task ID. Example:\n/cancel abc12345",
+          });
+          return;
+        }
+        yield* cancelTask(chatId, arg, ctx);
         break;
 
       default:
@@ -329,6 +340,50 @@ const handleCancelTask = (query: CallbackQuery, ctx: HandlerContext) =>
 
     // TODO: Forward to Operator DO
     yield* Effect.logInfo(`Task ${taskId} cancellation requested`);
+  });
+
+/**
+ * Cancel a task by command
+ */
+const cancelTask = (chatId: number, taskId: string, ctx: HandlerContext) =>
+  Effect.gen(function* () {
+    const { telegram, operator } = ctx;
+
+    yield* Effect.logInfo(`Cancelling task ${taskId}`);
+
+    // Update task status to failed
+    const result = yield* pipe(
+      Effect.tryPromise({
+        try: () =>
+          fetch(`${ctx.operatorUrl}/tasks/${taskId}/status`, {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ status: "failed" }),
+          }),
+        catch: (e) => new Error(`Failed to cancel task: ${e}`),
+      }),
+      Effect.flatMap((response) =>
+        response.ok
+          ? Effect.succeed("cancelled" as const)
+          : Effect.fail(new Error(`Failed: ${response.status}`)),
+      ),
+      Effect.tapError((e) => Effect.logError(`Failed to cancel task: ${e}`)),
+      Effect.catchAll(() => Effect.succeed("error" as const)),
+    );
+
+    if (result === "cancelled") {
+      yield* telegram.sendMessage({
+        chat_id: chatId,
+        text: `✅ Task <code>${taskId}</code> has been cancelled.`,
+        parse_mode: "HTML",
+      });
+    } else {
+      yield* telegram.sendMessage({
+        chat_id: chatId,
+        text: `❌ Failed to cancel task <code>${taskId}</code>. It may not exist or already be completed.`,
+        parse_mode: "HTML",
+      });
+    }
   });
 
 /**
