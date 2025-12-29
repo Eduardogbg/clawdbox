@@ -1,12 +1,16 @@
 import { config } from "dotenv";
-import * as Layer from "effect/Layer";
 import { FetchHttpClient } from "@effect/platform";
+import type { PlatformError } from "@effect/platform/Error";
+import type * as HttpClient from "@effect/platform/HttpClient";
 import { NodeContext } from "@effect/platform-node";
+import * as Layer from "effect/Layer";
 import {
   make as makeApp,
   State,
   dotAlchemy,
 } from "alchemy-effect";
+import type { App, DotAlchemy } from "alchemy-effect";
+import type { CLI } from "alchemy-effect/cli";
 import { testCLI } from "alchemy-effect/test";
 
 config({ path: ".env" });
@@ -25,9 +29,18 @@ export function testName(base: string): string {
   return `${TEST_PREFIX}${base}-${Date.now()}`;
 }
 
+type TestContext =
+  | NodeContext.NodeContext
+  | App
+  | State.State
+  | DotAlchemy
+  | CLI
+  | HttpClient.HttpClient;
+
 // Create a test context with in-memory state
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export function createTestContext(name: string): Layer.Layer<any, any, any> {
+export function createTestContext(
+  name: string,
+): Layer.Layer<TestContext, PlatformError> {
   const app = makeApp({
     name: name.replaceAll(/[^a-zA-Z0-9_-]/g, "-"),
     stage: "test",

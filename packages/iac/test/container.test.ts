@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeAll, afterAll } from "@effect/vitest";
+import { describe, it, expect } from "bun:test";
 import * as Effect from "effect/Effect";
 import * as Logger from "effect/Logger";
 import { LogLevel } from "effect";
@@ -50,10 +50,10 @@ describe("Container Integration", () => {
       ? "Cloudflare credentials not set"
       : null;
 
-  it.effect(
+  it(
     "builds and pushes container image",
-    () =>
-      Effect.gen(function* () {
+    async () => {
+      const program = Effect.gen(function* () {
         if (skipReason) {
           yield* Effect.logInfo(`Skipping: ${skipReason}`);
           expect(true).toBe(true); // Pass the test when skipped
@@ -87,7 +87,10 @@ describe("Container Integration", () => {
 
         // For automated testing, we verify the tooling is in place
         expect(true).toBe(true);
-      }).pipe(logLevel),
+      }).pipe(logLevel);
+
+      await Effect.runPromise(program);
+    },
     { timeout: 60000 },
   );
 });

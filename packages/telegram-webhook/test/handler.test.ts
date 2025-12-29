@@ -3,7 +3,7 @@
  *
  * Tests for the Telegram update handler without hitting real APIs.
  */
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect, vi } from "bun:test";
 import * as Effect from "effect/Effect";
 import type { Message, Update } from "../src/types.js";
 

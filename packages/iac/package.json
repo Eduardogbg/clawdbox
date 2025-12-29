@@ -8,8 +8,8 @@
     "deploy": "bun run src/deploy.ts",
     "destroy": "bun run src/deploy.ts --destroy",
     "typecheck": "tsc --noEmit",
-    "test": "vitest run",
-    "test:watch": "vitest"
+    "test": "bun test",
+    "test:watch": "bun test --watch"
   },
   "dependencies": {
     "alchemy-effect": "../../forks/alchemy-effect/alchemy-effect/alchemy-effect-0.6.0.tgz",
@@ -19,10 +19,8 @@
     "@cloudflare/workers-types": "^4.20250805.0",
     "@effect/platform": "^0.93.0",
     "@effect/platform-node": "^0.103.0",
-    "@effect/vitest": "^0.27.0",
     "@types/bun": "latest",
     "dotenv": "^16.4.7",
-    "typescript": "^5.9.3",
-    "vitest": "^3.2.0"
+    "typescript": "^5.9.3"
   }
 }

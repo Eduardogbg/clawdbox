@@ -1,4 +1,4 @@
-import { describe, it, expect, afterAll } from "@effect/vitest";
+import { describe, it, expect, afterAll } from "bun:test";
 
 /**
  * Operator Worker E2E Integration Test

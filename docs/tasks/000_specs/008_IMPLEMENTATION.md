@@ -28,7 +28,7 @@ bun add alchemy-effect
 bun add @anthropic-ai/claude-agent-sdk
 
 # Dev dependencies
-bun add -d typescript @types/bun vitest
+bun add -d typescript @types/bun
 ```
 
 **Project structure**:
@@ -608,18 +608,20 @@ export class OperatorDO extends DurableObject {
 
 ```typescript
 // tests/operator.test.ts
-import { it, expect } from "vitest";
-import { Effect } from "effect";
+import { it, expect } from "bun:test";
+import * as Effect from "effect/Effect";
 
-it("creates task with topic", () =>
-  Effect.gen(function* () {
-    const operator = new OperatorDO(mockCtx, mockEnv);
-    const task = yield* operator.createTask("fix bug", 123);
+it("creates task with topic", async () => {
+  await Effect.runPromise(
+    Effect.gen(function* () {
+      const operator = new OperatorDO(mockCtx, mockEnv);
+      const task = yield* operator.createTask("fix bug", 123);
 
-    expect(task.status).toBe("pending");
-    expect(task.topicId).toBe(123);
-  })
-);
+      expect(task.status).toBe("pending");
+      expect(task.topicId).toBe(123);
+    })
+  );
+});
 ```
 
 ### Integration Tests

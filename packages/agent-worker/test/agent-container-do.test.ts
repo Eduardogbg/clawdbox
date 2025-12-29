@@ -4,7 +4,7 @@
  * These tests verify the HTTP endpoint handling and state management
  * of the Agent Container Durable Object.
  */
-import { describe, it, expect, vi, beforeEach, Mock } from "vitest";
+import { describe, it, expect, vi, beforeEach, type Mock } from "bun:test";
 import type { ContainerState, ContainerStatus, AgentConfig } from "../src/types.js";
 
 /**

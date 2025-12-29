@@ -16,24 +16,21 @@
         "effect": "^3.19.3",
       },
       "devDependencies": {
-        "@effect/vitest": "^0.27.0",
         "@types/bun": "latest",
         "typescript": "^5.9.3",
-        "vitest": "^3.2.0",
       },
     },
     "packages/agent-worker": {
       "name": "@clawdbox/agent-worker",
       "version": "0.0.1",
       "dependencies": {
-        "@cloudflare/containers": "^0.0.2",
+        "@cloudflare/containers": "^0.0.31",
         "effect": "^3.19.3",
       },
       "devDependencies": {
         "@cloudflare/workers-types": "^4.20250805.0",
         "@types/bun": "latest",
         "typescript": "^5.9.3",
-        "vitest": "^3.2.4",
         "wrangler": "^4.17.2",
       },
     },
@@ -48,11 +45,9 @@
         "@cloudflare/workers-types": "^4.20250805.0",
         "@effect/platform": "^0.93.0",
         "@effect/platform-node": "^0.103.0",
-        "@effect/vitest": "^0.27.0",
         "@types/bun": "latest",
         "dotenv": "^16.4.7",
         "typescript": "^5.9.3",
-        "vitest": "^3.2.0",
       },
     },
     "packages/operator": {
@@ -84,10 +79,8 @@
       },
       "devDependencies": {
         "@cloudflare/workers-types": "^4.20250805.0",
-        "@effect/vitest": "^0.27.0",
         "@types/bun": "latest",
         "typescript": "^5.9.3",
-        "vitest": "^3.2.0",
         "wrangler": "^4.24.1",
       },
     },
@@ -167,7 +160,7 @@
 
     "@clawdbox/telegram-webhook": ["@clawdbox/telegram-webhook@workspace:packages/telegram-webhook"],
 
-    "@cloudflare/containers": ["@cloudflare/containers@0.0.2", "", { "dependencies": { "partyserver": "^0.0.68" } }, "sha512-uhC5zS90A4fLGwfDKv9JGhJpoFfBMo5gWX8Jz3qLRyqQZRWm8ZMJ7YOKdmEdU/Iu9wVIJPeXrdDoUc88BUxamw=="],
+    "@cloudflare/containers": ["@cloudflare/containers@0.0.31", "", {}, "sha512-zHxW6/JMzvK9To98OcNg2d3eiZUZRg11pARmQpJJyQdIQ0eQ/dh/Wpufx+HGd0k/xjMdrFP77YnOeopxdzsgng=="],
 
     "@cloudflare/kv-asset-handler": ["@cloudflare/kv-asset-handler@0.4.1", "", { "dependencies": { "mime": "^3.0.0" } }, "sha512-Nu8ahitGFFJztxUml9oD/DLb7Z28C8cd8F46IVQ7y5Btz575pvMY8AqZsXkX7Gds29eCKdMgIHjIvzskHgPSFg=="],
 
@@ -699,7 +692,7 @@
 
     "mustache": ["mustache@4.2.0", "", { "bin": { "mustache": "bin/mustache" } }, "sha512-71ippSywq5Yb7/tVYyGbkBggbU8H3u5Rz56fH60jGFgr8uHwxs+aSKeqmluIVzM0m0kB7xQjKS6qPfd0b2ZoqQ=="],
 
-    "nanoid": ["nanoid@5.1.6", "", { "bin": { "nanoid": "bin/nanoid.js" } }, "sha512-c7+7RQ+dMB5dPwwCp4ee1/iV/q2P6aK1mTZcfr1BTuVlyW9hJYiMPybJCcnBlQtuSmTIWNeazm/zqNoZSSElBg=="],
+    "nanoid": ["nanoid@3.3.11", "", { "bin": { "nanoid": "bin/nanoid.cjs" } }, "sha512-N8SpfPUnUp1bK+PMYW8qSWdl9U+wwNWI4QKxOYDy9JAro3WMX7p2OeVRF9v+347pnakNevPmiHhNmZ2HbFA76w=="],
 
     "node-addon-api": ["node-addon-api@7.1.1", "", {}, "sha512-5m3bsyrjFWE1xf7nz7YXdN4udnVtXK6/Yfgn5qnahL6bCkf2yKt4k3nuTKAtT4r3IG8JNR2ncsIMdZuAzJjHQQ=="],
 
@@ -712,8 +705,6 @@
     "ohash": ["ohash@2.0.11", "", {}, "sha512-RdR9FQrFwNBNXAr4GixM8YaRZRJ5PUWbKYbE5eOsrwAjJW0q2REGcf79oYPsLyskQCZG1PLN+S/K1V00joZAoQ=="],
 
     "pako": ["pako@1.0.11", "", {}, "sha512-4hLB8Py4zZce5s4yd9XzopqwVv/yGNhV1Bl8NTmCq1763HeK2+EwVTv+leGeL13Dnh2wfbqowVPXCIO0z4taYw=="],
-
-    "partyserver": ["partyserver@0.0.68", "", { "dependencies": { "nanoid": "^5.1.5" }, "peerDependencies": { "@cloudflare/workers-types": "^4.20240729.0" } }, "sha512-LdYuxyhFmu8M5Mx7+rTAAo9lfk22LUfbjXnaKUCXhwSABpgM66LNIjW8F1i2x/CSra1fzF3tIZFD5ojr3KeSQg=="],
 
     "path-to-regexp": ["path-to-regexp@6.3.0", "", {}, "sha512-Yhpw4T9C6hPpgPeA28us07OJeqZ5EzQTkbfwuhsUg0c237RomFoETJgmp2sa3F/41gfLE6G5cqcYwznmeEeOlQ=="],
 
@@ -856,8 +847,6 @@
     "miniflare/undici": ["undici@7.14.0", "", {}, "sha512-Vqs8HTzjpQXZeXdpsfChQTlafcMQaaIwnGwLam1wudSSjlJeQ3bw1j+TLPePgrCnCpUXx7Ba5Pdpf5OBih62NQ=="],
 
     "miniflare/ws": ["ws@8.18.0", "", { "peerDependencies": { "bufferutil": "^4.0.1", "utf-8-validate": ">=5.0.2" }, "optionalPeers": ["bufferutil", "utf-8-validate"] }, "sha512-8VbfWfHLbbwu3+N6OKsOMpBdT4kXPDDB9cJk2bJ6mh9ucxdlnNvH1e+roYkKmN9Nxw2yjz7VzeO9oOz2zJ04Pw=="],
-
-    "postcss/nanoid": ["nanoid@3.3.11", "", { "bin": { "nanoid": "bin/nanoid.cjs" } }, "sha512-N8SpfPUnUp1bK+PMYW8qSWdl9U+wwNWI4QKxOYDy9JAro3WMX7p2OeVRF9v+347pnakNevPmiHhNmZ2HbFA76w=="],
 
     "repro-sdk-bug/cloudflare-fixed": ["cloudflare@file:forks/cloudflare-typescript", { "dependencies": { "@types/node": "^18.11.18", "@types/node-fetch": "^2.6.4", "abort-controller": "^3.0.0", "agentkeepalive": "^4.2.1", "form-data-encoder": "1.7.2", "formdata-node": "^4.3.2", "node-fetch": "^2.6.7" } }],
 

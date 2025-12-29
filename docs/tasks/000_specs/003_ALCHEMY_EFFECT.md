@@ -321,21 +321,22 @@ bun run alchemy.run.ts --destroy
 ## Testing
 
 ```typescript
-// Test infrastructure with Effect test utilities
-import { it, expect } from "@effect/vitest";
+// Test infrastructure with Effect
+import { it, expect } from "bun:test";
+import * as Effect from "effect/Effect";
 
-it.effect("creates container", () =>
-  Effect.gen(function* () {
-    const container = yield* Container("test", {
-      className: "TestContainer",
-      maxInstances: 1,
-    });
+it("creates container", async () => {
+  await Effect.runPromise(
+    Effect.gen(function* () {
+      const container = yield* Container("test", {
+        className: "TestContainer",
+        maxInstances: 1,
+      });
 
-    expect(container.className).toBe("TestContainer");
-  }).pipe(
-    Effect.provide(TestCloudflareApiLayer)
-  )
-);
+      expect(container.className).toBe("TestContainer");
+    }).pipe(Effect.provide(TestCloudflareApiLayer))
+  );
+});
 ```
 
 ## Migration Path

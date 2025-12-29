@@ -1,4 +1,4 @@
-import { describe, it, expect } from "@effect/vitest";
+import { describe, it, expect } from "bun:test";
 
 /**
  * Operator Worker Integration Test

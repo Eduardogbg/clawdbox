@@ -1,6 +1,16 @@
 # Clawdbox TODO
 
-## Current Session: Ralph Session 014
+## Current Session: Post-Ralph Cleanup
+
+### Completed (Post-Ralph)
+- [x] Removed pnpm workspace/lockfiles; reverted to Bun-only workspace
+- [x] Removed npm/pnpm from agent permission allowlist
+- [x] Added Telegram + Cloudflare E2E test (deploys workers, sets webhook, sends message)
+- [x] Telegram E2E run succeeded (deploy + webhook + message)
+- [x] Ran IaC container test with Docker available
+- [x] Migrated tests to `bun:test` and removed Vitest configs/deps
+- [x] Typed IaC test context to avoid `any`/internal CLI types and keep typecheck clean
+- [x] Ensured IaC integration tests always attempt cleanup via `Effect.ensuring(destroy())`
 
 ### Completed Session 014
 - [x] Updated @cloudflare/containers to 0.0.31 (breaking API changes)
@@ -28,7 +38,6 @@
   - Buildkit still tries to verify with registry
   - Tried: --pull=false, --no-cache, prune cache, DOCKER_BUILDKIT=0
 - [ ] R2 bucket testing - needs R2 enabled on Cloudflare dashboard
-- [ ] Telegram integration - needs bot token from @BotFather
 - [ ] Git push - no remote configured
 
 ---
@@ -51,13 +60,14 @@
   - Container stopped callback (/container-stopped)
   - Synchronous /permission endpoint with long-polling
 
-## Phase 3: Telegram Integration - BLOCKED (needs bot token)
+## Phase 3: Telegram Integration - IN PROGRESS
 - [x] Webhook handler with validation
 - [x] Bot commands: /task, /status, /help, /cancel
 - [x] Topic management (forum support)
 - [x] Unit tests for handler (10 tests)
-- [ ] Requires TELEGRAM_BOT_TOKEN (create via @BotFather)
+- [x] TELEGRAM_BOT_TOKEN available in telegram.json
 - [ ] Deploy and configure webhook URL
+- [x] E2E deployment + message test added (see packages/telegram-webhook/test/e2e.test.ts)
 
 ## Phase 4: Agent Runtime - MOSTLY COMPLETE
 - [x] Dockerfile for agent container (+ Alpine alternative)
@@ -126,6 +136,15 @@ packages/
  Total: 154 tests passed | 2 skipped (156)
 ```
 
+## Test Results (Post-Ralph)
+```
+=== IaC (container test) ===
+ ✓ test/container.test.ts (3 tests)
+
+=== Telegram E2E ===
+ ✓ test/e2e.test.ts (deploy + webhook + message)
+```
+
 ## Known Issues
 - Cloudflare SDK bug: SecretsStore.create() sends array but API expects object
   - Workaround: alchemy-effect uses direct fetch()
@@ -138,15 +157,15 @@ packages/
 1. Fix Docker registry connectivity (may need Docker Desktop restart/network changes)
 2. Enable R2 on Cloudflare dashboard
 3. Create GitHub repo and push all code
-4. Create Telegram bot via @BotFather
-5. Deploy agent-worker to Cloudflare Containers
+4. Deploy agent-worker to Cloudflare Containers
 
 ## Environment Variables Required
 
 ```bash
 CLOUDFLARE_API_TOKEN=xxx      # API token with account permissions
 CLOUDFLARE_ACCOUNT_ID=3a16620c57b98731f762586aeed4f25c
-TELEGRAM_BOT_TOKEN=xxx        # From @BotFather (not yet available)
+TELEGRAM_BOT_TOKEN=xxx        # From @BotFather
+TELEGRAM_CHAT_ID=xxx          # From telegram.json (forum/chat ID)
 ANTHROPIC_API_KEY=xxx         # For agent containers
 GITHUB_PAT=xxx                # For private repo access
 ```

@@ -1,5 +1,6 @@
-import { describe, it, expect } from "@effect/vitest";
+import { describe, it, expect } from "bun:test";
 import * as Effect from "effect/Effect";
+import { pipe } from "effect/Function";
 import * as Logger from "effect/Logger";
 import * as Data from "effect/Data";
 import * as Schedule from "effect/Schedule";
@@ -33,47 +34,55 @@ const waitForNamespaceToBeDeleted = Effect.fn(function* (
 });
 
 describe("KV Namespace Integration", () => {
-  it.effect(
+  it(
     "creates namespace, verifies, and deletes",
-    () =>
-      Effect.gen(function* () {
-        const api = yield* Cloudflare.CloudflareApi;
-        const accountId = yield* Cloudflare.Account;
+    async () => {
+      const program = pipe(
+        Effect.gen(function* () {
+          const api = yield* Cloudflare.CloudflareApi;
+          const accountId = yield* Cloudflare.Account;
 
-        // Clean up any previous test state
-        yield* destroy();
+          // Clean up any previous test state
+          yield* destroy();
 
-        const namespaceName = testName("kv-ns");
+          const namespaceName = testName("kv-ns");
 
-        // Create a test KV namespace
-        class TestNamespace extends Cloudflare.KV.Namespace("TestNamespace", {
-          title: namespaceName,
-        }) {}
+          // Create a test KV namespace
+          class TestNamespace extends Cloudflare.KV.Namespace("TestNamespace", {
+            title: namespaceName,
+          }) {}
 
-        // Apply the resource
-        const stack = yield* apply(TestNamespace);
+          // Apply the resource
+          const stack = yield* apply(TestNamespace);
 
-        // Verify the namespace was created
-        expect(stack.TestNamespace.namespaceId).toBeDefined();
-        expect(stack.TestNamespace.title).toEqual(namespaceName);
+          // Verify the namespace was created
+          expect(stack.TestNamespace.namespaceId).toBeDefined();
+          expect(stack.TestNamespace.title).toEqual(namespaceName);
 
-        // Verify via API
-        const actualNs = yield* api.kv.namespaces.get(
-          stack.TestNamespace.namespaceId,
-          { account_id: accountId },
-        );
-        expect(actualNs.title).toEqual(namespaceName);
+          // Verify via API
+          const actualNs = yield* api.kv.namespaces.get(
+            stack.TestNamespace.namespaceId,
+            { account_id: accountId },
+          );
+          expect(actualNs.title).toEqual(namespaceName);
 
-        // Clean up
-        yield* destroy();
+          // Clean up
+          yield* destroy();
 
-        // Verify namespace is deleted
-        yield* waitForNamespaceToBeDeleted(stack.TestNamespace.namespaceId, accountId);
-      }).pipe(
+          // Verify namespace is deleted
+          yield* waitForNamespaceToBeDeleted(
+            stack.TestNamespace.namespaceId,
+            accountId,
+          );
+        }),
+        Effect.ensuring(destroy()),
         Effect.provide(Cloudflare.providers()),
         Effect.provide(createTestContext("kv-test")),
         logLevel,
-      ),
+      );
+
+      await Effect.runPromise(program);
+    },
     { timeout: 120000 },
   );
 });

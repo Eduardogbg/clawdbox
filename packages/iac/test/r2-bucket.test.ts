@@ -1,5 +1,6 @@
-import { describe, it, expect } from "@effect/vitest";
+import { describe, it, expect } from "bun:test";
 import * as Effect from "effect/Effect";
+import { pipe } from "effect/Function";
 import * as Logger from "effect/Logger";
 import * as Data from "effect/Data";
 import * as Schedule from "effect/Schedule";
@@ -36,49 +37,54 @@ const waitForBucketToBeDeleted = Effect.fn(function* (
 describe("R2 Bucket Integration", () => {
   // NOTE: R2 needs to be enabled on the Cloudflare dashboard
   // Error: 10042 - Please enable R2 through the Cloudflare Dashboard
-  it.effect.skip(
+  it.skip(
     "creates, verifies, and deletes R2 bucket",
-    () =>
-      Effect.gen(function* () {
-        const api = yield* Cloudflare.CloudflareApi;
-        const accountId = yield* Cloudflare.Account;
+    async () => {
+      const program = pipe(
+        Effect.gen(function* () {
+          const api = yield* Cloudflare.CloudflareApi;
+          const accountId = yield* Cloudflare.Account;
 
-        // Clean up any previous test state
-        yield* destroy();
+          // Clean up any previous test state
+          yield* destroy();
 
-        const bucketName = testName("r2-bucket");
+          const bucketName = testName("r2-bucket");
 
-        // Create a test bucket using the class-based resource pattern
-        class TestBucket extends Cloudflare.R2.Bucket("TestBucket", {
-          name: bucketName,
-          storageClass: "Standard",
-        }) {}
+          // Create a test bucket using the class-based resource pattern
+          class TestBucket extends Cloudflare.R2.Bucket("TestBucket", {
+            name: bucketName,
+            storageClass: "Standard",
+          }) {}
 
-        // Apply the resource
-        const stack = yield* apply(TestBucket);
+          // Apply the resource
+          const stack = yield* apply(TestBucket);
 
-        // Verify the bucket was created
-        expect(stack.TestBucket.bucketName).toBeDefined();
+          // Verify the bucket was created
+          expect(stack.TestBucket.bucketName).toBeDefined();
 
-        const actualBucket = yield* api.r2.buckets.get(
-          stack.TestBucket.bucketName,
-          {
-            account_id: accountId,
-          },
-        );
-        expect(actualBucket.name).toEqual(stack.TestBucket.bucketName);
-        expect(actualBucket.storage_class).toEqual("Standard");
+          const actualBucket = yield* api.r2.buckets.get(
+            stack.TestBucket.bucketName,
+            {
+              account_id: accountId,
+            },
+          );
+          expect(actualBucket.name).toEqual(stack.TestBucket.bucketName);
+          expect(actualBucket.storage_class).toEqual("Standard");
 
-        // Clean up
-        yield* destroy();
+          // Clean up
+          yield* destroy();
 
-        // Verify bucket is deleted
-        yield* waitForBucketToBeDeleted(stack.TestBucket.bucketName, accountId);
-      }).pipe(
+          // Verify bucket is deleted
+          yield* waitForBucketToBeDeleted(stack.TestBucket.bucketName, accountId);
+        }),
+        Effect.ensuring(destroy()),
         Effect.provide(Cloudflare.providers()),
         Effect.provide(createTestContext("r2-bucket-test")),
         logLevel,
-      ),
+      );
+
+      await Effect.runPromise(program);
+    },
     { timeout: 120000 },
   );
 });

@@ -3,7 +3,7 @@
  *
  * These tests verify the Worker's routing logic and health endpoint.
  */
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect, vi } from "bun:test";
 import type { Env } from "../src/types.js";
 
 /**

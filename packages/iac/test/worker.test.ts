@@ -1,5 +1,6 @@
-import { describe, it, expect } from "@effect/vitest";
+import { describe, it, expect } from "bun:test";
 import * as Effect from "effect/Effect";
+import { pipe } from "effect/Function";
 import * as Logger from "effect/Logger";
 import * as Data from "effect/Data";
 import * as Schedule from "effect/Schedule";
@@ -40,59 +41,64 @@ const waitForWorkerToBeDeleted = Effect.fn(function* (
 });
 
 describe("Worker Integration", () => {
-  it.effect(
+  it(
     "creates, verifies, and deletes Worker",
-    () =>
-      Effect.gen(function* () {
-        const api = yield* Cloudflare.CloudflareApi;
-        const accountId = yield* Cloudflare.Account;
+    async () => {
+      const program = pipe(
+        Effect.gen(function* () {
+          const api = yield* Cloudflare.CloudflareApi;
+          const accountId = yield* Cloudflare.Account;
 
-        // Clean up any previous test state
-        yield* destroy();
+          // Clean up any previous test state
+          yield* destroy();
 
-        const workerName = testName("worker");
+          const workerName = testName("worker");
 
-        // Create a test worker using the Worker.serve API
-        class TestWorker extends Cloudflare.Worker.serve("TestWorker", {
-          fetch: Effect.fn(function* (request) {
-            return new Response("Hello from TestWorker");
-          }),
-        })({
-          name: workerName,
-          main,
-          bindings: $(),
-          subdomain: { enabled: false },
-          compatibility: {
-            date: "2024-01-01",
-          },
-        }) {}
+          // Create a test worker using the Worker.serve API
+          class TestWorker extends Cloudflare.Worker.serve("TestWorker", {
+            fetch: Effect.fn(function* (request) {
+              return new Response("Hello from TestWorker");
+            }),
+          })({
+            name: workerName,
+            main,
+            bindings: $(),
+            subdomain: { enabled: false },
+            compatibility: {
+              date: "2024-01-01",
+            },
+          }) {}
 
-        // Apply the resource
-        const stack = yield* apply(TestWorker);
+          // Apply the resource
+          const stack = yield* apply(TestWorker);
 
-        // Verify the worker was created
-        expect(stack.TestWorker.workerName).toEqual(workerName);
-        expect(stack.TestWorker.workerId).toBeDefined();
+          // Verify the worker was created
+          expect(stack.TestWorker.workerName).toEqual(workerName);
+          expect(stack.TestWorker.workerId).toBeDefined();
 
-        // Verify via API
-        const actualWorker = yield* api.workers.beta.workers.get(
-          stack.TestWorker.workerName,
-          {
-            account_id: accountId,
-          },
-        );
-        expect(actualWorker.name).toEqual(stack.TestWorker.workerName);
+          // Verify via API
+          const actualWorker = yield* api.workers.beta.workers.get(
+            stack.TestWorker.workerName,
+            {
+              account_id: accountId,
+            },
+          );
+          expect(actualWorker.name).toEqual(stack.TestWorker.workerName);
 
-        // Clean up
-        yield* destroy();
+          // Clean up
+          yield* destroy();
 
-        // Verify worker is deleted
-        yield* waitForWorkerToBeDeleted(stack.TestWorker.workerId, accountId);
-      }).pipe(
+          // Verify worker is deleted
+          yield* waitForWorkerToBeDeleted(stack.TestWorker.workerId, accountId);
+        }),
+        Effect.ensuring(destroy()),
         Effect.provide(Cloudflare.providers()),
         Effect.provide(createTestContext("worker-test")),
         logLevel,
-      ),
+      );
+
+      await Effect.runPromise(program);
+    },
     { timeout: 180000 },
   );
 });

@@ -3,13 +3,13 @@
  *
  * Tests for the Operator Durable Object client.
  */
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach } from "bun:test";
 import * as Effect from "effect/Effect";
 import { createOperatorClient, type TaskResponse, type PermissionResponse } from "../src/operator-client.js";
 
 // Mock fetch globally
 const mockFetch = vi.fn();
-global.fetch = mockFetch as typeof fetch;
+global.fetch = mockFetch as unknown as typeof fetch;
 
 describe("Operator Client", () => {
   const client = createOperatorClient("https://operator.example.com");

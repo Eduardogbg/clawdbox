@@ -3,7 +3,7 @@
  *
  * These tests verify the Worker's HTTP routing and request handling.
  */
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach } from "bun:test";
 
 /**
  * Mock environment
@@ -12,6 +12,22 @@ interface MockEnv {
   TELEGRAM_BOT_TOKEN: string;
   WEBHOOK_SECRET?: string;
   OPERATOR_URL?: string;
+}
+
+interface HealthResponse {
+  status: string;
+}
+
+interface SetupOkResponse {
+  ok: boolean;
+}
+
+interface SetupErrorResponse {
+  error: string;
+}
+
+interface WebhookInfoResponse {
+  url: string;
 }
 
 /**
@@ -23,6 +39,10 @@ function createMockEnv(overrides: Partial<MockEnv> = {}): MockEnv {
     OPERATOR_URL: "https://operator.example.com",
     ...overrides,
   };
+}
+
+async function parseJson<T>(response: Response): Promise<T> {
+  return (await response.json()) as T;
 }
 
 /**
@@ -92,7 +112,7 @@ describe("Telegram Webhook Worker", () => {
       const request = new Request("http://localhost/health", { method: "GET" });
 
       const response = await workerFetch(request, env);
-      const body = await response.json();
+      const body = await parseJson<HealthResponse>(response);
 
       expect(response.status).toBe(200);
       expect(body.status).toBe("ok");
@@ -179,7 +199,7 @@ describe("Telegram Webhook Worker", () => {
       });
 
       const response = await workerFetch(request, env);
-      const body = await response.json();
+      const body = await parseJson<SetupOkResponse>(response);
 
       expect(response.status).toBe(200);
       expect(body.ok).toBe(true);
@@ -194,7 +214,7 @@ describe("Telegram Webhook Worker", () => {
       });
 
       const response = await workerFetch(request, env);
-      const body = await response.json();
+      const body = await parseJson<SetupErrorResponse>(response);
 
       expect(response.status).toBe(400);
       expect(body.error).toContain("Missing url");
@@ -220,7 +240,7 @@ describe("Telegram Webhook Worker", () => {
       const request = new Request("http://localhost/webhook-info", { method: "GET" });
 
       const response = await workerFetch(request, env);
-      const body = await response.json();
+      const body = await parseJson<WebhookInfoResponse>(response);
 
       expect(response.status).toBe(200);
       expect(body.url).toBeDefined();

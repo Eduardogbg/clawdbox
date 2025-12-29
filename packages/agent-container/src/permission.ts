@@ -108,8 +108,6 @@ const isAutoAllowed = (
       /^git diff/,
       /^git branch/,
       /^bun run (lint|typecheck|test|check)/,
-      /^npm run (lint|typecheck|test|check)/,
-      /^pnpm run (lint|typecheck|test|check)/,
     ];
     return safeCommands.some((pattern) => pattern.test(command));
   }

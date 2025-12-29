@@ -3,13 +3,40 @@
  *
  * Tests for the Telegram Bot API client.
  */
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach } from "bun:test";
 import * as Effect from "effect/Effect";
+import { pipe } from "effect/Function";
+import * as Schema from "effect/Schema";
 import { createTelegramClient } from "../src/telegram.js";
 
 // Mock fetch globally
 const mockFetch = vi.fn();
-global.fetch = mockFetch as typeof fetch;
+global.fetch = mockFetch as unknown as typeof fetch;
+
+const MessageResponseSchema = Schema.Struct({
+  result: Schema.Struct({
+    message_id: Schema.Number,
+  }),
+});
+
+const BooleanResponseSchema = Schema.Struct({
+  result: Schema.Boolean,
+});
+
+const ForumTopicSchema = Schema.Struct({
+  message_thread_id: Schema.Number,
+  name: Schema.String,
+  icon_color: Schema.Number,
+  icon_custom_emoji_id: Schema.optional(Schema.String),
+});
+
+const WebhookInfoSchema = Schema.Struct({
+  result: Schema.Struct({
+    url: Schema.String,
+    has_custom_certificate: Schema.Boolean,
+    pending_update_count: Schema.Number,
+  }),
+});
 
 describe("Telegram Client", () => {
   const client = createTelegramClient("test-bot-token");
@@ -26,10 +53,13 @@ describe("Telegram Client", () => {
       });
 
       const result = await Effect.runPromise(
-        client.sendMessage({
-          chat_id: 12345,
-          text: "Hello, world!",
-        })
+        pipe(
+          client.sendMessage({
+            chat_id: 12345,
+            text: "Hello, world!",
+          }),
+          Effect.flatMap(Schema.decodeUnknown(MessageResponseSchema)),
+        ),
       );
 
       expect(result.result.message_id).toBe(123);
@@ -90,7 +120,10 @@ describe("Telegram Client", () => {
       });
 
       const result = await Effect.runPromise(
-        client.answerCallbackQuery("query123", { text: "Done!" })
+        pipe(
+          client.answerCallbackQuery("query123", { text: "Done!" }),
+          Effect.flatMap(Schema.decodeUnknown(BooleanResponseSchema)),
+        ),
       );
 
       expect(result.result).toBe(true);
@@ -146,10 +179,13 @@ describe("Telegram Client", () => {
       });
 
       const result = await Effect.runPromise(
-        client.createForumTopic({
-          chat_id: -123456789,
-          name: "Task: Fix bug",
-        })
+        pipe(
+          client.createForumTopic({
+            chat_id: -123456789,
+            name: "Task: Fix bug",
+          }),
+          Effect.flatMap(Schema.decodeUnknown(ForumTopicSchema)),
+        ),
       );
 
       expect(result.message_thread_id).toBe(42);
@@ -175,7 +211,10 @@ describe("Telegram Client", () => {
       });
 
       const result = await Effect.runPromise(
-        client.editMessageText(12345, 123, "Updated text")
+        pipe(
+          client.editMessageText(12345, 123, "Updated text"),
+          Effect.flatMap(Schema.decodeUnknown(MessageResponseSchema)),
+        ),
       );
 
       expect(result.result.message_id).toBe(123);
@@ -232,7 +271,10 @@ describe("Telegram Client", () => {
       });
 
       const result = await Effect.runPromise(
-        client.deleteMessage(12345, 123)
+        pipe(
+          client.deleteMessage(12345, 123),
+          Effect.flatMap(Schema.decodeUnknown(BooleanResponseSchema)),
+        ),
       );
 
       expect(result.result).toBe(true);
@@ -257,7 +299,10 @@ describe("Telegram Client", () => {
       });
 
       const result = await Effect.runPromise(
-        client.setWebhook("https://example.com/webhook")
+        pipe(
+          client.setWebhook("https://example.com/webhook"),
+          Effect.flatMap(Schema.decodeUnknown(BooleanResponseSchema)),
+        ),
       );
 
       expect(result.result).toBe(true);
@@ -307,7 +352,12 @@ describe("Telegram Client", () => {
         }),
       });
 
-      const result = await Effect.runPromise(client.getWebhookInfo());
+      const result = await Effect.runPromise(
+        pipe(
+          client.getWebhookInfo(),
+          Effect.flatMap(Schema.decodeUnknown(WebhookInfoSchema)),
+        ),
+      );
 
       expect(result.result.url).toBe("https://example.com/webhook");
       expect(mockFetch).toHaveBeenCalledWith(

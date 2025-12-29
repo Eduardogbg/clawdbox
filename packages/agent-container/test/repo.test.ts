@@ -1,11 +1,11 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect } from "bun:test";
 
 /**
  * Tests for repository management logic.
  *
  * Note: We test the logic here, not the actual shell commands.
  * The actual cloneRepo/pushChanges functions use bun shell ($)
- * which is not available in vitest. These tests verify the
+ * which we avoid invoking in tests. These tests verify the
  * helper logic and URL handling.
  */
 

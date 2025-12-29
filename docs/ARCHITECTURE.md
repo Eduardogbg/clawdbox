@@ -110,7 +110,7 @@ The following tools don't require explicit approval:
 Safe Bash commands (auto-allowed):
 - `ls`, `cat`, `head`, `tail`, `pwd`
 - `git status`, `git log`, `git diff`, `git branch`
-- `bun/npm/pnpm run lint|typecheck|test|check`
+- `bun run lint|typecheck|test|check`
 
 ## Technology Stack
 
@@ -164,7 +164,7 @@ cd packages/agent-worker && npx wrangler deploy
 cd packages/telegram-webhook && npx wrangler deploy
 
 # Run IaC tests
-cd packages/iac && bunx vitest run
+cd packages/iac && bun test
 ```
 
 ## Testing
@@ -188,13 +188,13 @@ cd packages/iac && bunx vitest run
 ### Running Tests
 ```bash
 # All tests
-cd packages/iac && bunx vitest run
+cd packages/iac && bun test
 
 # Typecheck all packages
 bun run typecheck
 
 # Single test file
-cd packages/iac && bunx vitest run test/operator-e2e.test.ts
+cd packages/iac && bun test test/operator-e2e.test.ts
 ```
 
 ## Future Improvements

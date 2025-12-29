@@ -1,5 +1,6 @@
-import { describe, it, expect } from "@effect/vitest";
+import { describe, it, expect } from "bun:test";
 import * as Effect from "effect/Effect";
+import { pipe } from "effect/Function";
 import * as Logger from "effect/Logger";
 import * as Data from "effect/Data";
 import * as Schedule from "effect/Schedule";
@@ -41,54 +42,59 @@ const waitForStoreToBeDeleted = Effect.fn(function* (
 });
 
 describe("SecretsStore Integration", () => {
-  it.effect(
+  it(
     "creates store with secrets, verifies, and deletes",
-    () =>
-      Effect.gen(function* () {
-        const api = yield* Cloudflare.CloudflareApi;
-        const accountId = yield* Cloudflare.Account;
+    async () => {
+      const program = pipe(
+        Effect.gen(function* () {
+          const api = yield* Cloudflare.CloudflareApi;
+          const accountId = yield* Cloudflare.Account;
 
-        // Clean up any previous test state
-        yield* destroy();
+          // Clean up any previous test state
+          yield* destroy();
 
-        const storeName = testName("secrets-store");
+          const storeName = testName("secrets-store");
 
-        // Create a test secrets store
-        class TestStore extends Cloudflare.SecretsStore.Store("TestStore", {
-          name: storeName,
-          secrets: {
-            TEST_SECRET_1: "value1",
-            TEST_SECRET_2: "value2",
-          },
-        }) {}
+          // Create a test secrets store
+          class TestStore extends Cloudflare.SecretsStore.Store("TestStore", {
+            name: storeName,
+            secrets: {
+              TEST_SECRET_1: "value1",
+              TEST_SECRET_2: "value2",
+            },
+          }) {}
 
-        // Apply the resource
-        const stack = yield* apply(TestStore);
+          // Apply the resource
+          const stack = yield* apply(TestStore);
 
-        // Verify the store was created
-        expect(stack.TestStore.storeId).toBeDefined();
-        expect(stack.TestStore.storeName).toEqual(storeName);
+          // Verify the store was created
+          expect(stack.TestStore.storeId).toBeDefined();
+          expect(stack.TestStore.storeName).toEqual(storeName);
 
-        // Verify secrets exist (we can't read the values, only check they exist)
-        const stores = yield* api.secretsStore.stores.list({
-          account_id: accountId,
-        });
+          // Verify secrets exist (we can't read the values, only check they exist)
+          const stores = yield* api.secretsStore.stores.list({
+            account_id: accountId,
+          });
 
-        const ourStore = stores.result?.find(
-          (s: { name?: string }) => s.name === storeName,
-        );
-        expect(ourStore).toBeDefined();
+          const ourStore = stores.result?.find(
+            (s: { name?: string }) => s.name === storeName,
+          );
+          expect(ourStore).toBeDefined();
 
-        // Clean up
-        yield* destroy();
+          // Clean up
+          yield* destroy();
 
-        // Verify store is deleted
-        yield* waitForStoreToBeDeleted(storeName, accountId);
-      }).pipe(
+          // Verify store is deleted
+          yield* waitForStoreToBeDeleted(storeName, accountId);
+        }),
+        Effect.ensuring(destroy()),
         Effect.provide(Cloudflare.providers()),
         Effect.provide(createTestContext("secrets-store-test")),
         logLevel,
-      ),
+      );
+
+      await Effect.runPromise(program);
+    },
     { timeout: 120000 },
   );
 });

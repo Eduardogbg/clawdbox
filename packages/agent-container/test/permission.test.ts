@@ -3,7 +3,7 @@
  *
  * Tests for the permission hook logic without hitting real APIs.
  */
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach } from "bun:test";
 import * as Effect from "effect/Effect";
 import type { AgentConfig } from "../src/config.js";
 

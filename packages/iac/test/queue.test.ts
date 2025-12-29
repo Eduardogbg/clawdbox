@@ -1,5 +1,6 @@
-import { describe, it, expect } from "@effect/vitest";
+import { describe, it, expect } from "bun:test";
 import * as Effect from "effect/Effect";
+import { pipe } from "effect/Function";
 import * as Logger from "effect/Logger";
 import * as Data from "effect/Data";
 import * as Schedule from "effect/Schedule";
@@ -38,50 +39,56 @@ const waitForQueueToBeDeleted = Effect.fn(function* (
 });
 
 describe("Queue Integration", () => {
-  it.effect.skipIf(!queuesEnabled)(
+  const queueTest = it.skipIf(!queuesEnabled);
+  queueTest(
     "creates queue, verifies, and deletes",
-    () =>
-      Effect.gen(function* () {
-        const api = yield* Cloudflare.CloudflareApi;
-        const accountId = yield* Cloudflare.Account;
+    async () => {
+      const program = pipe(
+        Effect.gen(function* () {
+          const api = yield* Cloudflare.CloudflareApi;
+          const accountId = yield* Cloudflare.Account;
 
-        // Clean up any previous test state
-        yield* destroy();
+          // Clean up any previous test state
+          yield* destroy();
 
-        const queueName = testName("queue");
+          const queueName = testName("queue");
 
-        // Create a test Queue
-        class TestQueue extends Cloudflare.Queue.Queue("TestQueue", {
-          name: queueName,
-        }) {}
+          // Create a test Queue
+          class TestQueue extends Cloudflare.Queue.Queue("TestQueue", {
+            name: queueName,
+          }) {}
 
-        // Apply the resource
-        const stack = yield* apply(TestQueue);
+          // Apply the resource
+          const stack = yield* apply(TestQueue);
 
-        // Verify the queue was created
-        expect(stack.TestQueue.queueId).toBeDefined();
-        expect(stack.TestQueue.queueName).toEqual(queueName);
+          // Verify the queue was created
+          expect(stack.TestQueue.queueId).toBeDefined();
+          expect(stack.TestQueue.queueName).toEqual(queueName);
 
-        // Verify via API
-        const queues = yield* api.queues.list({
-          account_id: accountId,
-        });
+          // Verify via API
+          const queues = yield* api.queues.list({
+            account_id: accountId,
+          });
 
-        const ourQueue = (queues.result ?? []).find(
-          (q: { queue_name?: string }) => q.queue_name === queueName,
-        );
-        expect(ourQueue).toBeDefined();
+          const ourQueue = (queues.result ?? []).find(
+            (q: { queue_name?: string }) => q.queue_name === queueName,
+          );
+          expect(ourQueue).toBeDefined();
 
-        // Clean up
-        yield* destroy();
+          // Clean up
+          yield* destroy();
 
-        // Verify queue is deleted
-        yield* waitForQueueToBeDeleted(stack.TestQueue.queueId, accountId);
-      }).pipe(
+          // Verify queue is deleted
+          yield* waitForQueueToBeDeleted(stack.TestQueue.queueId, accountId);
+        }),
+        Effect.ensuring(destroy()),
         Effect.provide(Cloudflare.providers()),
         Effect.provide(createTestContext("queue-test")),
         logLevel,
-      ),
+      );
+
+      await Effect.runPromise(program);
+    },
     { timeout: 120000 },
   );
 });

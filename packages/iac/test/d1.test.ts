@@ -1,5 +1,6 @@
-import { describe, it, expect } from "@effect/vitest";
+import { describe, it, expect } from "bun:test";
 import * as Effect from "effect/Effect";
+import { pipe } from "effect/Function";
 import * as Logger from "effect/Logger";
 import * as Data from "effect/Data";
 import * as Schedule from "effect/Schedule";
@@ -33,47 +34,55 @@ const waitForDatabaseToBeDeleted = Effect.fn(function* (
 });
 
 describe("D1 Database Integration", () => {
-  it.effect(
+  it(
     "creates database, verifies, and deletes",
-    () =>
-      Effect.gen(function* () {
-        const api = yield* Cloudflare.CloudflareApi;
-        const accountId = yield* Cloudflare.Account;
+    async () => {
+      const program = pipe(
+        Effect.gen(function* () {
+          const api = yield* Cloudflare.CloudflareApi;
+          const accountId = yield* Cloudflare.Account;
 
-        // Clean up any previous test state
-        yield* destroy();
+          // Clean up any previous test state
+          yield* destroy();
 
-        const dbName = testName("d1-db");
+          const dbName = testName("d1-db");
 
-        // Create a test D1 database
-        class TestDatabase extends Cloudflare.D1.Database("TestDatabase", {
-          name: dbName,
-        }) {}
+          // Create a test D1 database
+          class TestDatabase extends Cloudflare.D1.Database("TestDatabase", {
+            name: dbName,
+          }) {}
 
-        // Apply the resource
-        const stack = yield* apply(TestDatabase);
+          // Apply the resource
+          const stack = yield* apply(TestDatabase);
 
-        // Verify the database was created
-        expect(stack.TestDatabase.databaseId).toBeDefined();
-        expect(stack.TestDatabase.databaseName).toEqual(dbName);
+          // Verify the database was created
+          expect(stack.TestDatabase.databaseId).toBeDefined();
+          expect(stack.TestDatabase.databaseName).toEqual(dbName);
 
-        // Verify via API
-        const actualDb = yield* api.d1.database.get(
-          stack.TestDatabase.databaseId,
-          { account_id: accountId },
-        );
-        expect(actualDb.name).toEqual(dbName);
+          // Verify via API
+          const actualDb = yield* api.d1.database.get(
+            stack.TestDatabase.databaseId,
+            { account_id: accountId },
+          );
+          expect(actualDb.name).toEqual(dbName);
 
-        // Clean up
-        yield* destroy();
+          // Clean up
+          yield* destroy();
 
-        // Verify database is deleted
-        yield* waitForDatabaseToBeDeleted(stack.TestDatabase.databaseId, accountId);
-      }).pipe(
+          // Verify database is deleted
+          yield* waitForDatabaseToBeDeleted(
+            stack.TestDatabase.databaseId,
+            accountId,
+          );
+        }),
+        Effect.ensuring(destroy()),
         Effect.provide(Cloudflare.providers()),
         Effect.provide(createTestContext("d1-test")),
         logLevel,
-      ),
+      );
+
+      await Effect.runPromise(program);
+    },
     { timeout: 120000 },
   );
 });
