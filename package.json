@@ -5,7 +5,13 @@
   "workspaces": [
     "packages/*"
   ],
+  "scripts": {
+    "typecheck": "bun run --filter='packages/*' tsc --noEmit",
+    "test": "bunx vitest run",
+    "test:iac": "cd packages/iac && bunx vitest run"
+  },
   "devDependencies": {
-    "pathe": "^2.0.3"
+    "pathe": "^2.0.3",
+    "typescript": "^5.9.3"
   }
 }

@@ -1,24 +1,17 @@
 # Clawdbox TODO
 
-## Current Session: Ralph Session 003
+## Current Session: Ralph Session 004
 
 ### Completed This Session
-- [x] Verified all IaC integration tests pass (10 pass, 1 skip for R2)
-- [x] Fixed agent-container build script (added --target bun)
-- [x] Started Docker Desktop
-- [x] Created container build/push CI workflow (.github/workflows/container.yml)
-- [x] Updated Dockerfile to not require lockfile
-- [x] Created agent-worker package with Container DO
-- [x] Implemented AgentContainerDO extending @cloudflare/containers
-- [x] Created container test script (scripts/test-local.sh)
-- [x] Added agent-worker to CI/CD workflows
-- [x] Wired Operator to spawn containers via agent-worker
-- [x] Added /container-stopped callback to Operator
-- [x] Added repoUrl and branch to Task schema
+- [x] Fixed vitest version for @effect/vitest compatibility (^3.2.0)
+- [x] All IaC tests passing (10 pass, 1 skip)
+- [x] Added root typecheck and test scripts
+- [ ] Docker image build in progress (network slow)
 
 ### Blocked/Deferred
-- [ ] Docker image build - network timeouts on image pull
-- [ ] Docker image testing - waiting on build
+- [ ] Docker image build - pulling base image (network slow)
+- [ ] R2 bucket testing - needs R2 enabled on Cloudflare dashboard
+- [ ] Telegram integration - needs bot token from @BotFather
 
 ---
 
@@ -61,7 +54,7 @@
   - Lifecycle callbacks: onStart, onStop, onError
   - SQLite state tracking
 - [x] Operator integration for spawning containers
-- [ ] Build and test Docker image locally
+- [ ] Build and test Docker image locally (in progress)
 - [ ] Test actual container deployment with Docker
 
 ## Phase 5: Full Integration - IN PROGRESS
@@ -105,9 +98,9 @@ packages/
 - Docker network can be slow for image pulls
 
 ## Next Steps
-1. Enable R2 on Cloudflare dashboard
-2. Create Telegram bot via @BotFather
-3. Build Docker container locally (when network permits)
+1. Complete Docker image build once network permits
+2. Enable R2 on Cloudflare dashboard
+3. Create Telegram bot via @BotFather
 4. Deploy agent-worker to Cloudflare
 5. Set AGENT_WORKER_URL in Operator
 6. Complete end-to-end integration test
