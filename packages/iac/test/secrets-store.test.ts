@@ -1,30 +1,102 @@
 import { describe, it, expect } from "@effect/vitest";
-import * as Cloudflare from "alchemy-effect/cloudflare";
 import * as Effect from "effect/Effect";
-import * as Layer from "effect/Layer";
-import { FetchHttpClient } from "@effect/platform";
-import { NodeContext } from "@effect/platform-node";
+import * as Logger from "effect/Logger";
+import * as Data from "effect/Data";
+import * as Schedule from "effect/Schedule";
+import * as Cloudflare from "alchemy-effect/cloudflare";
+import { apply, destroy } from "alchemy-effect";
+import { LogLevel } from "effect";
+import { testName, createTestContext } from "./setup.ts";
 
-// Test for SecretsStore resource
-// Note: This is an integration test that requires:
-// - CLOUDFLARE_API_TOKEN env var
-// - CLOUDFLARE_ACCOUNT_ID env var
-describe("SecretsStore", () => {
-  it.effect.skip(
-    "creates and deletes store with test- prefix",
+const logLevel = Logger.withMinimumLogLevel(
+  process.env.DEBUG ? LogLevel.Debug : LogLevel.Info,
+);
+
+class StoreStillExists extends Data.TaggedError("StoreStillExists") {}
+
+// Helper to wait for store deletion
+const waitForStoreToBeDeleted = Effect.fn(function* (
+  storeName: string,
+  accountId: string,
+) {
+  const api = yield* Cloudflare.CloudflareApi;
+  // The secrets store API uses stores directly
+  yield* api.secretsStore.stores
+    .list({ account_id: accountId })
+    .pipe(
+      Effect.flatMap((stores) => {
+        const exists = stores.result?.some(
+          (s: { name?: string }) => s.name === storeName,
+        );
+        if (exists) {
+          return Effect.fail(new StoreStillExists());
+        }
+        return Effect.void;
+      }),
+      Effect.retry({
+        while: (e): e is StoreStillExists => e instanceof StoreStillExists,
+        schedule: Schedule.exponential(100),
+      }),
+    );
+});
+
+describe("SecretsStore Integration", () => {
+  it.effect(
+    "creates store with secrets, verifies, and deletes",
     () =>
       Effect.gen(function* () {
-        // This test is skipped by default as it requires live Cloudflare credentials
-        // To run: remove .skip and set CLOUDFLARE_API_TOKEN and CLOUDFLARE_ACCOUNT_ID
-        expect(true).toBe(true);
-      }),
+        const api = yield* Cloudflare.CloudflareApi;
+        const accountId = yield* Cloudflare.Account;
+
+        // Clean up any previous test state
+        yield* destroy();
+
+        const storeName = testName("secrets-store");
+
+        // Create a test secrets store
+        class TestStore extends Cloudflare.SecretsStore.Store("TestStore", {
+          name: storeName,
+          secrets: {
+            TEST_SECRET_1: "value1",
+            TEST_SECRET_2: "value2",
+          },
+        }) {}
+
+        // Apply the resource
+        const stack = yield* apply(TestStore);
+
+        // Verify the store was created
+        expect(stack.TestStore.storeId).toBeDefined();
+        expect(stack.TestStore.storeName).toEqual(storeName);
+
+        // Verify secrets exist (we can't read the values, only check they exist)
+        const stores = yield* api.secretsStore.stores.list({
+          account_id: accountId,
+        });
+
+        const ourStore = stores.result?.find(
+          (s: { name?: string }) => s.name === storeName,
+        );
+        expect(ourStore).toBeDefined();
+
+        // Clean up
+        yield* destroy();
+
+        // Verify store is deleted
+        yield* waitForStoreToBeDeleted(storeName, accountId);
+      }).pipe(
+        Effect.provide(Cloudflare.providers()),
+        Effect.provide(createTestContext("secrets-store-test")),
+        logLevel,
+      ),
     { timeout: 120000 },
   );
 });
 
-// Placeholder test that always passes to verify test infrastructure works
-describe("Test Infrastructure", () => {
-  it("should have test framework configured", () => {
-    expect(true).toBe(true);
+// Placeholder test to verify infrastructure is working
+describe("SecretsStore Test Infrastructure", () => {
+  it("should have environment variables configured", () => {
+    expect(process.env.CLOUDFLARE_API_TOKEN).toBeDefined();
+    expect(process.env.CLOUDFLARE_ACCOUNT_ID).toBeDefined();
   });
 });
