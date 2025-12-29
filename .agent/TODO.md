@@ -1,10 +1,11 @@
 # Clawdbox Project TODO
 
 ## Session 11 Status
-- All 89 tests passing (IAC: 33, Telegram: 33, Agent-container: 23)
+- All 117 tests passing (IAC: 33, Telegram: 33, Agent-container: 23, Agent-worker: 28)
 - TypeCheck passes for all packages
 - Docker buildkit still has registry connectivity issues
 - No git remote configured
+- Added agent-worker unit tests this session
 
 ## Completed
 - [x] Fix alchemy-effect dependency to use local fork (tgz tarball)
@@ -120,7 +121,11 @@ packages/
  ✓ test/config.test.ts (9 tests)
  ✓ test/permission.test.ts (14 tests)
 
- Total: 89 tests passed | 1 skipped (90)
+=== Agent Worker Package (28 tests) - NEW ===
+ ✓ test/agent-container-do.test.ts (18 tests)
+ ✓ test/worker.test.ts (10 tests)
+
+ Total: 117 tests passed | 1 skipped (118)
 ```
 
 ## Alchemy-Effect Fork Details

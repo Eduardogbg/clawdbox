@@ -8,11 +8,14 @@ This session focused on attempting Docker image builds and running verification 
 
 ## Key Activities
 
-### 1. Test Verification
+### 1. Test Verification and Expansion
 - Ran all IAC integration tests (33 tests passed)
 - Ran all Telegram tests (33 tests passed)
 - Ran all agent-container tests (23 tests passed)
-- Total: 89 tests passing, 1 skipped
+- Added agent-worker unit tests (28 tests) - NEW
+  - AgentContainerDO tests (18 tests) - state management, lifecycle, HTTP handlers
+  - Worker routing tests (10 tests) - path routing, DO forwarding, health check
+- Total: 117 tests passing, 1 skipped
 
 ### 2. Docker Build Attempts
 Multiple approaches tried to build the agent-container Docker image:
@@ -52,9 +55,9 @@ All code follows Effect patterns and is well-documented.
  ✓ test/operator.test.ts (2 tests)
  ✓ test/r2-bucket.test.ts (2 tests | 1 skipped)
  ✓ test/container.test.ts (3 tests)
- ✓ test/operator-e2e.test.ts (23 tests) 5924ms
- ✓ test/worker.test.ts (2 tests) 6977ms
- ✓ test/secrets-store.test.ts (2 tests) 7871ms
+ ✓ test/operator-e2e.test.ts (23 tests)
+ ✓ test/worker.test.ts (2 tests)
+ ✓ test/secrets-store.test.ts (2 tests)
 
 === Telegram Package (33 tests) ===
  ✓ test/handler.test.ts (10 tests)
@@ -65,7 +68,11 @@ All code follows Effect patterns and is well-documented.
  ✓ test/config.test.ts (9 tests)
  ✓ test/permission.test.ts (14 tests)
 
-Total: 89 tests passed | 1 skipped (90)
+=== Agent Worker Package (28 tests) - NEW ===
+ ✓ test/agent-container-do.test.ts (18 tests)
+ ✓ test/worker.test.ts (10 tests)
+
+Total: 117 tests passed | 1 skipped (118)
 ```
 
 ## Ongoing Blockers
@@ -139,9 +146,9 @@ The project is feature-complete pending external dependencies:
 packages/
 ├── iac/                    # IaC with alchemy-effect (33 tests)
 ├── operator/               # Deployed to workers.dev
-├── agent-container/        # Ready, needs Docker build
-├── agent-worker/           # Ready, needs container
-└── telegram-webhook/       # Ready, needs bot token
+├── agent-container/        # Ready, needs Docker build (23 tests)
+├── agent-worker/           # Ready, needs container (28 tests)
+└── telegram-webhook/       # Ready, needs bot token (33 tests)
 ```
 
 **Deployed**: Operator Worker at https://clawdbox-operator.eduardogbg.workers.dev
@@ -156,10 +163,15 @@ packages/
 
 ## Notes
 
-The code is in excellent shape with comprehensive test coverage. The only blockers are external dependencies:
+The code is in excellent shape with comprehensive test coverage (117 tests across 4 packages). The only blockers are external dependencies:
 - Docker registry connectivity (network/Docker Desktop issue)
 - R2 activation (dashboard action)
 - Telegram bot creation (manual step)
 - Git remote setup (repository creation)
 
 All of these require user action or environmental changes rather than code changes.
+
+## Commits This Session
+
+1. `5866f3b` - docs: add session 011 handoff and update TODOs
+2. (pending) - test(agent-worker): add unit tests for Container DO and Worker

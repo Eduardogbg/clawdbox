@@ -9,6 +9,9 @@
 - [x] Confirmed network ping works but Docker buildkit metadata fetch times out
 - [x] Pruned Docker buildx cache (18GB reclaimed)
 - [x] Documented blocking issues
+- [x] Added agent-worker unit tests (28 tests)
+  - AgentContainerDO tests (18 tests) - state management, lifecycle, HTTP handlers
+  - Worker routing tests (10 tests) - path routing, DO forwarding, health check
 
 ### Blocked/Deferred
 - [ ] Docker image build - Docker buildkit cannot fetch metadata from docker.io
@@ -77,7 +80,7 @@ packages/
 ├── iac/                    # Infrastructure as Code (33 tests)
 ├── operator/               # Operator Worker + Durable Object
 ├── agent-container/        # Claude Agent Container (23 tests)
-├── agent-worker/           # Worker with Container DO
+├── agent-worker/           # Worker with Container DO (28 tests)
 └── telegram-webhook/       # Telegram Bot Worker (33 tests)
 ```
 
@@ -103,7 +106,11 @@ packages/
  ✓ test/config.test.ts (9 tests)
  ✓ test/permission.test.ts (14 tests)
 
- Total: 89 tests passed | 1 skipped (90)
+=== Agent Worker Package (28 tests) ===
+ ✓ test/agent-container-do.test.ts (18 tests)
+ ✓ test/worker.test.ts (10 tests)
+
+ Total: 117 tests passed | 1 skipped (118)
 ```
 
 ## Known Issues
