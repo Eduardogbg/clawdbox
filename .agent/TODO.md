@@ -1,5 +1,12 @@
 # Clawdbox Project TODO
 
+## Session 8 Status
+- All 28 tests passing
+- TypeCheck passes for all packages
+- Docker Hub unreachable (100% packet loss to registry-1.docker.io)
+- No git remote configured
+- ghcr.io reachable but bun images not available there
+
 ## Completed
 - [x] Fix alchemy-effect dependency to use local fork (tgz tarball)
 - [x] Build alchemy-effect fork with proper exports
@@ -9,15 +16,28 @@
 - [x] Test Worker deployment via IaC (PASSED!)
 - [x] Create packages/agent-container structure (Dockerfile, entrypoint, permission hooks)
 - [x] Create packages/telegram-webhook (Telegram Bot API, handler, wrangler config)
+- [x] Set up CI/CD workflows (.github/workflows/ci.yml, deploy.yml, container.yml)
+- [x] Create Operator Durable Object with full CRUD for tasks/sessions/permissions
+- [x] Add synchronous permission endpoint with long-polling for agent
+- [x] Add E2E tests for Operator (18 tests covering sessions, permissions, task lifecycle)
+- [x] Add /status command to Telegram webhook
+- [x] Create architecture documentation (docs/ARCHITECTURE.md)
+- [x] Deploy Operator Worker to Cloudflare
 
 ## In Progress
-- [ ] Set up CI/CD for IaC tests
+- [ ] Container image build (blocked: Docker Hub unreachable)
 
-## Pending
-- [ ] Test R2 bucket deployment via IaC (requires R2 enabled in CF dashboard)
-- [ ] Create Operator Durable Object for task coordination
-- [ ] Telegram Bot integration (API key needed)
-- [ ] Container deployment testing (requires Docker + beta access)
+## Blocked
+- [ ] Test R2 bucket deployment (R2 not enabled in CF dashboard)
+- [ ] Container deployment testing (Docker Hub network issue)
+- [ ] Telegram Bot integration (bot token not available)
+- [ ] Git push (no remote configured)
+
+## Ready for Next Session
+- [ ] Once Docker Hub accessible: build and test agent-container
+- [ ] Once R2 enabled: run R2 test
+- [ ] Once Telegram token available: configure webhook
+- [ ] Create GitHub repository and push code
 
 ## Package Structure
 
@@ -25,67 +45,112 @@
 packages/
 ├── iac/                    # Infrastructure as Code
 │   ├── src/alchemy.run.ts  # Main IaC entrypoint
-│   └── test/               # Integration tests
+│   └── test/               # Integration tests (6 files, 28 tests)
 │       ├── secrets-store.test.ts (PASS)
 │       ├── worker.test.ts (PASS)
-│       └── r2-bucket.test.ts (NEEDS R2 ENABLED)
+│       ├── r2-bucket.test.ts (SKIPPED - R2 not enabled)
+│       ├── operator.test.ts (PASS)
+│       ├── container.test.ts (PASS - local Docker works)
+│       └── operator-e2e.test.ts (PASS - 18 tests)
+├── operator/               # Operator Durable Object Worker
+│   └── src/
+│       ├── index.ts        # Worker entry
+│       ├── operator-do.ts  # DO with full CRUD + long-polling permissions
+│       ├── types.ts        # Task, Session, Permission types
+│       └── sql.ts          # SQL queries
 ├── agent-container/        # Claude Agent SDK Container
 │   ├── Dockerfile          # Bun + Node.js + claude-code
 │   └── src/
 │       ├── entrypoint.ts   # Main entry point
 │       ├── config.ts       # Schema for agent config
-│       ├── permission.ts   # Permission hook for Telegram approval
+│       ├── permission.ts   # Permission hook for operator
 │       └── repo.ts         # Repository cloning/pushing
+├── agent-worker/           # Agent Container Worker
+│   ├── wrangler.toml       # Container config
+│   └── src/
+│       ├── index.ts        # Worker entry
+│       ├── agent-container-do.ts  # Container DO
+│       └── types.ts        # Environment bindings
 └── telegram-webhook/       # Telegram Bot Worker
     ├── wrangler.toml       # Cloudflare Worker config
     └── src/
         ├── index.ts        # Worker handler
-        ├── handler.ts      # Update processing
+        ├── handler.ts      # Update processing (/start, /status, etc.)
         ├── telegram.ts     # Telegram API client
+        ├── operator-client.ts  # Operator API client
         └── types.ts        # Telegram Bot API types
 ```
 
-## Notes
+## CI/CD Workflows
+- `.github/workflows/ci.yml` - TypeCheck + Unit Tests + Integration Tests
+- `.github/workflows/deploy.yml` - Deploy Workers to Cloudflare
+- `.github/workflows/container.yml` - Build and push Docker container
 
-### Alchemy-Effect Fork Changes
-1. Added `export * from "./api.ts"` to cloudflare/index.ts to expose CloudflareApi
-2. Added package exports for: `./test`, `./cloudflare/secrets-store`, `./cloudflare/container`
-3. Created scripts/fix-imports.ts to add .js extensions to relative imports in lib/
-
-### Environment Variables Required
+## Environment Variables Required
 - `CLOUDFLARE_API_TOKEN` - API token with account permissions
 - `CLOUDFLARE_ACCOUNT_ID` - 3a16620c57b98731f762586aeed4f25c
 - `TELEGRAM_BOT_TOKEN` - (not yet available)
+- `ANTHROPIC_API_KEY` - (for agent containers)
+- `GITHUB_PAT` - (for private repo access)
 
-### Cloudflare Account Status
+## Cloudflare Account Status
 - Account ID: 3a16620c57b98731f762586aeed4f25c
 - R2: NOT ENABLED (needs dashboard activation)
 - Secrets Store: ENABLED (test passes)
 - Workers: ENABLED (test passes)
 - Containers: Beta feature (needs special configuration)
 
-### Test Results (2025-12-29)
-- SecretsStore: PASS - Creates store with secrets, verifies, and deletes
-- R2: FAIL - R2 not enabled on account (error 10042)
-- Worker: PASS - Creates worker, verifies via API, deletes
+## Test Results (Session 8)
+```
+ ✓ test/operator.test.ts (2 tests)
+ ✓ test/r2-bucket.test.ts (2 tests | 1 skipped)
+ ✓ test/container.test.ts (3 tests)
+ ✓ test/operator-e2e.test.ts (18 tests)
+ ✓ test/worker.test.ts (2 tests)
+ ✓ test/secrets-store.test.ts (2 tests)
 
-### Cloudflare Container Architecture Notes
-Containers are Durable Object-based compute that run Docker images:
-- Require Docker running locally for wrangler deploy
-- Need `[[containers]]` section in wrangler.toml
-- Container class must extend `@cloudflare/containers`
-- In alchemy-effect, Container is a "virtual resource" (binding only)
-- Container lifecycle is managed via Worker deployment
+ Test Files  6 passed (6)
+      Tests  28 passed | 1 skipped (29)
+```
 
-### Durable Object Architecture Notes
-Durable Objects in alchemy-effect are also "virtual resources":
-- `DurableObject.Namespace` creates a binding configuration
-- `DurableObject.Bind(namespace)` adds binding to Worker policy
-- The actual DO class must be defined in Worker source code
-- DO namespace is created when Worker is deployed
+## Alchemy-Effect Fork Details
+Location: `forks/alchemy-effect/alchemy-effect/`
+Consumed via: `alchemy-effect-0.6.0.tgz` (tarball in lib/)
 
-## Next Steps
-1. Enable R2 via Cloudflare dashboard and rerun test
-2. Create Operator Durable Object for task/session management
-3. Get Telegram Bot token and test webhook integration
-4. Set up GitHub Actions for CI/CD
+Exports added:
+- `./test` - Test utilities
+- `./cloudflare/secrets-store` - Secrets Store resource
+- `./cloudflare/container` - Container resource
+- CloudflareApi exposed from `./cloudflare`
+
+## Deployed Resources
+- **Operator Worker**: https://clawdbox-operator.eduardogbg.workers.dev
+
+## API Endpoints (Operator)
+
+### Tasks
+- `POST /tasks` - Create task
+- `GET /tasks?status=<status>` - List tasks
+- `GET /tasks/:id` - Get task
+- `PATCH /tasks/:id/status` - Update task status
+- `POST /tasks/:id/spawn` - Spawn agent for task
+- `GET /tasks/:id/permissions` - Get pending permissions for task
+
+### Sessions
+- `POST /sessions` - Create session
+- `GET /sessions/:id` - Get session
+
+### Permissions
+- `POST /permissions` - Create permission (async)
+- `POST /permission` - Create + wait for resolution (sync, long-polling)
+- `GET /permissions/:id` - Get permission
+- `POST /permissions/:id/resolve` - Approve/deny permission
+
+### Agent Callbacks
+- `POST /session` - Report Claude session ID
+- `POST /complete` - Report task completion
+- `POST /error` - Report task error
+- `POST /stream` - Stream message to operator
+
+### Container
+- `POST /container-stopped` - Container stopped callback

@@ -10,5 +10,8 @@ forks/*
 # iac state
 **/.alchemy/state
 
+# wrangler state
+**/.wrangler
+
 **/node_modules
 **/.env
