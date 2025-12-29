@@ -4,16 +4,27 @@
 
 ## Session Summary
 
-This session focused on adding comprehensive test coverage for the Telegram webhook handler and the agent-container package. Both packages now have unit tests that can run without external dependencies.
+This session focused on adding comprehensive test coverage for the Telegram webhook handler and the agent-container package. Both packages now have extensive unit tests that can run without external dependencies.
 
 ## Key Accomplishments
 
-### 1. Telegram Webhook Tests (10 tests)
-Added unit tests for `packages/telegram-webhook/test/handler.test.ts`:
+### 1. Telegram Webhook Tests (33 tests)
+
+**Handler Tests (10 tests)** - `test/handler.test.ts`:
 - Command parsing tests (/start, /task, /help, unknown)
 - Forum topic creation for supergroup chats
 - Permission callback handling (approve/deny)
 - Non-command message handling
+
+**Operator Client Tests (11 tests)** - `test/operator-client.test.ts`:
+- createTask, getTask, listTasks
+- resolvePermission, getTaskPermissions
+- updateTaskStatus, sendStreamMessage
+
+**Telegram API Client Tests (12 tests)** - `test/telegram.test.ts`:
+- sendMessage, answerCallbackQuery
+- createForumTopic, editMessageText
+- deleteMessage, setWebhook, getWebhookInfo
 
 ### 2. Agent Container Tests (23 tests)
 Added unit tests for `packages/agent-container`:
@@ -40,20 +51,25 @@ Added unit tests for `packages/agent-container`:
  ✓ test/worker.test.ts (2 tests)
  ✓ test/secrets-store.test.ts (2 tests)
 
-=== Telegram Package (10 tests) ===
+=== Telegram Package (33 tests) ===
  ✓ test/handler.test.ts (10 tests)
+ ✓ test/operator-client.test.ts (11 tests)
+ ✓ test/telegram.test.ts (12 tests)
 
 === Agent Container Package (23 tests) ===
  ✓ test/config.test.ts (9 tests)
  ✓ test/permission.test.ts (14 tests)
 
-Total: 66 tests passed | 1 skipped (67)
+Total: 89 tests passed | 1 skipped (90)
 ```
 
 ## Commits
 
 1. `e74adbe` - test(telegram): add unit tests for Telegram handler
 2. `57fa255` - test(agent-container): add unit tests for config and permission
+3. `7a3a2b8` - docs: add session 010 handoff documentation
+4. `a918222` - test(telegram): add unit tests for Operator client
+5. `ae0e371` - test(telegram): add unit tests for Telegram API client
 
 ## Ongoing Blockers
 
@@ -112,7 +128,6 @@ npx wrangler deploy
 3. **Create GitHub repo** and push all code
 4. **Create Telegram bot** via @BotFather
 5. **Deploy agent-worker** to Cloudflare Containers
-6. Consider adding tests for operator-client in telegram-webhook
 
 ## Architecture Notes
 

@@ -3,9 +3,11 @@
 ## Current Session: Ralph Session 010
 
 ### Completed This Session
-- [x] Verified all tests passing (33 IAC + 10 Telegram + 23 Agent = 66 total)
+- [x] Verified all tests passing (33 IAC + 33 Telegram + 23 Agent = 89 total)
 - [x] Verified all typechecks pass
 - [x] Added Telegram handler unit tests (10 tests)
+- [x] Added Operator client unit tests (11 tests)
+- [x] Added Telegram API client unit tests (12 tests)
 - [x] Updated telegram-webhook package.json with vitest dependencies
 - [x] Created vitest.config.ts for telegram-webhook package
 - [x] Added agent-container unit tests (23 tests)
@@ -77,7 +79,7 @@ packages/
 ├── operator/               # Operator Worker + Durable Object
 ├── agent-container/        # Claude Agent Container (23 tests)
 ├── agent-worker/           # Worker with Container DO
-└── telegram-webhook/       # Telegram Bot Worker (10 tests)
+└── telegram-webhook/       # Telegram Bot Worker (33 tests)
 ```
 
 ## Deployed Resources
@@ -93,12 +95,20 @@ packages/
  ✓ test/worker.test.ts (2 tests)
  ✓ test/secrets-store.test.ts (2 tests)
 
-=== Telegram Package (10 tests) ===
+=== Telegram Package (33 tests) ===
  ✓ test/handler.test.ts (10 tests)
    - Command parsing (/start, /task, /help, unknown)
    - Forum topic creation
    - Permission callback handling (approve/deny)
    - Non-command message handling
+ ✓ test/operator-client.test.ts (11 tests)
+   - createTask, getTask, listTasks
+   - resolvePermission, getTaskPermissions
+   - updateTaskStatus, sendStreamMessage
+ ✓ test/telegram.test.ts (12 tests)
+   - sendMessage, answerCallbackQuery
+   - createForumTopic, editMessageText
+   - deleteMessage, setWebhook, getWebhookInfo
 
 === Agent Container Package (23 tests) ===
  ✓ test/config.test.ts (9 tests)
@@ -109,7 +119,7 @@ packages/
    - Permission-required tools
    - Operator communication
 
- Total: 66 tests passed | 1 skipped (67)
+ Total: 89 tests passed | 1 skipped (90)
 ```
 
 ## Known Issues
