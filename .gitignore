@@ -7,6 +7,9 @@ effect
 forks/*
 !forks/alchemy-effect
 
+# secret
+telegram.json
+
 # iac state
 **/.alchemy/state
 
@@ -16,5 +19,4 @@ forks/*
 **/node_modules
 **/.env
 
-# lock files (use bun.lock at root)
-**/pnpm-lock.yaml
+**/dist

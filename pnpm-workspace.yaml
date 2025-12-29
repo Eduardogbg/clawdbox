@@ -1,3 +1,0 @@
-packages:
-  - 'packages/*'
-  - '!packages/repro-sdk-bug'  # Debug/test package, not part of main codebase

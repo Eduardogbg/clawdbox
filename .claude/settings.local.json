@@ -28,7 +28,11 @@
       "Bash(uv pip install:*)",
       "Bash(ralph --help:*)",
       "Bash(source /Users/eduardo/workspace/clawdbox/forks/agents/.venv/bin/activate)",
-      "Bash(uv pip uninstall:*)"
+      "Bash(uv pip uninstall:*)",
+      "Bash(git branch:*)",
+      "Bash(git push:*)",
+      "Bash(gh repo edit:*)",
+      "Bash(gh repo view:*)"
     ]
   }
 }
