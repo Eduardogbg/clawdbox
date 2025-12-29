@@ -1,12 +1,11 @@
 # Clawdbox Project TODO
 
-## Session 12 Status
-- All 154 tests passing (IAC: 40, Telegram: 45, Agent-container: 43, Agent-worker: 28)
+## Session 13 Status
+- All 156 tests passing (IAC: 40, Telegram: 45, Agent-container: 43, Agent-worker: 28)
 - TypeCheck passes for all packages
+- Fixed vitest version mismatch (@effect/vitest requires ^3.2.0, not ^4.0.0)
 - Docker buildkit still has registry connectivity issues
 - No git remote configured
-- Added D1, KV, Queue integration tests this session
-- Added repo logic unit tests (20 new tests)
 
 ## Completed
 - [x] Fix alchemy-effect dependency to use local fork (tgz tarball)
@@ -30,6 +29,7 @@
 - [x] Create Dockerfile.alpine alternative for network issues
 - [x] Verify alchemy-effect fork integration
 - [x] Add comprehensive unit tests for all packages
+- [x] Fix vitest version mismatch for @effect/vitest (Session 13)
 
 ## Blocked
 - [ ] Test R2 bucket deployment (R2 not enabled in CF dashboard)
@@ -38,7 +38,12 @@
 - [ ] Telegram Bot integration (bot token not available)
 - [ ] Git push (no remote configured)
 
-## Ready for Next Session
+## In Progress This Session
+- [ ] Try Docker build again with different network options
+- [ ] Explore Cloudflare Containers beta
+- [ ] Review IaC configuration for containers
+
+## Ready for Future Sessions
 - [ ] Once Docker registry fixed: build and push agent-container
 - [ ] Once R2 enabled: run R2 test
 - [ ] Once Telegram token available: configure webhook
@@ -112,7 +117,7 @@ packages/
 - Queues: NOT ENABLED (requires paid plan)
 - Containers: Beta feature (needs special configuration)
 
-## Test Results (Session 12)
+## Test Results (Session 13)
 ```
 === IAC Package (40 tests) ===
  ✓ test/operator.test.ts (2 tests)
@@ -121,9 +126,9 @@ packages/
  ✓ test/operator-e2e.test.ts (23 tests)
  ✓ test/worker.test.ts (2 tests)
  ✓ test/secrets-store.test.ts (2 tests)
- ✓ test/d1.test.ts (2 tests) - NEW
- ✓ test/kv.test.ts (2 tests) - NEW
- ✓ test/queue.test.ts (2 tests | 1 skipped) - NEW
+ ✓ test/d1.test.ts (2 tests)
+ ✓ test/kv.test.ts (2 tests)
+ ✓ test/queue.test.ts (2 tests | 1 skipped)
 
 === Telegram Package (45 tests) ===
  ✓ test/handler.test.ts (10 tests)
@@ -134,7 +139,7 @@ packages/
 === Agent Container Package (43 tests) ===
  ✓ test/config.test.ts (9 tests)
  ✓ test/permission.test.ts (14 tests)
- ✓ test/repo.test.ts (20 tests) - NEW
+ ✓ test/repo.test.ts (20 tests)
 
 === Agent Worker Package (28 tests) ===
  ✓ test/agent-container-do.test.ts (18 tests)
@@ -189,7 +194,7 @@ Exports tested:
 ### Container
 - `POST /container-stopped` - Container stopped callback
 
-## Docker Issues (Session 12)
+## Docker Issues (Session 12-13)
 Docker buildkit cannot fetch metadata from docker.io even when:
 - Images exist locally (alpine:3.17 available)
 - Network ping works to hub.docker.com
@@ -197,15 +202,5 @@ Docker buildkit cannot fetch metadata from docker.io even when:
 
 Likely requires Docker Desktop restart or network reconfiguration.
 
-## Commits This Session
-1. `a04b442` - test(iac): add D1, KV, and Queue integration tests
-2. `d6c3f70` - test(agent-container): add repo logic unit tests
-3. `4977d72` - feat(iac): add KV and D1 resources to stack
-4. `c8031b8` - docs: add session 012 handoff document
-5. `1c5c0f4` - feat(iac): add deployment script for infrastructure stack
-
-## Deployed Resources (production)
-Deployed via `bun run deploy` but destroyed to allow tests to pass:
-- Secrets Store: fa244b9afdd6412299dac28acf0fc83f (deleted)
-- KV Namespace: cc2f5049126a4d0ea2540e25183706f5 (still deployed)
-- D1 Database: d0f57459-2af7-42f8-a09b-46626014811d (still deployed)
+## Commits This Session (13)
+1. Fix vitest version mismatch for @effect/vitest compatibility
