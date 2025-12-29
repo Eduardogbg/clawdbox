@@ -9,6 +9,7 @@ import { pipe } from "effect/Function";
 import { LogLevel, Logger } from "effect";
 import type { Update } from "./types.js";
 import { createTelegramClient } from "./telegram.js";
+import { createOperatorClient } from "./operator-client.js";
 import { handleUpdate } from "./handler.js";
 
 /**
@@ -77,14 +78,17 @@ async function handleWebhook(request: Request, env: Env): Promise<Response> {
     const update = (await request.json()) as Update;
     console.log(`Received update ${update.update_id}`);
 
-    // Create Telegram client
+    // Create clients
     const telegram = createTelegramClient(env.TELEGRAM_BOT_TOKEN);
+    const operatorUrl = env.OPERATOR_URL ?? "";
+    const operator = createOperatorClient(operatorUrl);
 
     // Handle update
     const program = pipe(
       handleUpdate(update, {
         telegram,
-        operatorUrl: env.OPERATOR_URL ?? "",
+        operator,
+        operatorUrl,
       }),
       Effect.catchAll((error) =>
         Effect.gen(function* () {

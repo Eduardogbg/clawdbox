@@ -6,13 +6,15 @@
 import * as Effect from "effect/Effect";
 import { pipe } from "effect/Function";
 import type { Update, Message, CallbackQuery } from "./types.js";
-import { createTelegramClient, TelegramClient } from "./telegram.js";
+import { TelegramClient } from "./telegram.js";
+import { createOperatorClient, type OperatorClient } from "./operator-client.js";
 
 /**
  * Handler context
  */
 interface HandlerContext {
   telegram: TelegramClient;
+  operator: OperatorClient;
   operatorUrl: string;
 }
 
@@ -149,7 +151,7 @@ In a task thread:
  */
 const createTask = (message: Message, prompt: string, ctx: HandlerContext) =>
   Effect.gen(function* () {
-    const { telegram, operatorUrl } = ctx;
+    const { telegram, operator } = ctx;
     const chatId = message.chat.id;
     const userId = message.from?.id;
 
@@ -163,13 +165,22 @@ const createTask = (message: Message, prompt: string, ctx: HandlerContext) =>
           chat_id: chatId,
           name: `📋 ${prompt.substring(0, 50)}${prompt.length > 50 ? "..." : ""}`,
         }),
-        Effect.catchAll((e) => {
-          // If forum topics not enabled, fall back to regular message
-          return Effect.succeed(null);
-        }),
+        Effect.tapError((e) => Effect.logWarning(`Failed to create forum topic: ${e}`)),
+        Effect.catchAll(() => Effect.succeed(null)),
       );
 
       if (topic) {
+        // Create task in Operator DO
+        const task = yield* pipe(
+          operator.createTask({
+            prompt,
+            telegramTopicId: topic.message_thread_id,
+            telegramChatId: chatId,
+          }),
+          Effect.tapError((e) => Effect.logError(`Failed to create task in Operator: ${e}`)),
+          Effect.catchAll(() => Effect.succeed(null)),
+        );
+
         // Send initial message in the topic
         yield* telegram.sendMessage({
           chat_id: chatId,
@@ -177,23 +188,33 @@ const createTask = (message: Message, prompt: string, ctx: HandlerContext) =>
           text: `🚀 Task created!
 
 <b>Task:</b> ${escapeHtml(prompt)}
+<b>ID:</b> <code>${task?.id ?? "pending"}</code>
 
 Starting agent... Please wait.`,
           parse_mode: "HTML",
         });
 
-        // TODO: Forward to Operator DO to spawn agent
-        yield* Effect.logInfo(`Task created with topic ${topic.message_thread_id}`);
+        yield* Effect.logInfo(`Task ${task?.id} created with topic ${topic.message_thread_id}`);
         return;
       }
     }
 
-    // Regular group or private chat - just acknowledge
+    // Regular group or private chat - create task without topic
+    const task = yield* pipe(
+      operator.createTask({
+        prompt,
+        telegramChatId: chatId,
+      }),
+      Effect.tapError((e) => Effect.logError(`Failed to create task in Operator: ${e}`)),
+      Effect.catchAll(() => Effect.succeed(null)),
+    );
+
     yield* telegram.sendMessage({
       chat_id: chatId,
       text: `🚀 Task received!
 
 <b>Task:</b> ${escapeHtml(prompt)}
+<b>ID:</b> <code>${task?.id ?? "pending"}</code>
 
 Note: For best experience, use this bot in a forum-enabled group where each task gets its own thread.`,
       parse_mode: "HTML",
@@ -266,7 +287,7 @@ const handlePermissionResponse = (
   ctx: HandlerContext,
 ) =>
   Effect.gen(function* () {
-    const { telegram, operatorUrl } = ctx;
+    const { telegram, operator } = ctx;
     const data = query.data ?? "";
     const parts = data.split(":");
     const permissionId = parts[1];
@@ -275,6 +296,13 @@ const handlePermissionResponse = (
     yield* telegram.answerCallbackQuery(query.id, {
       text: approved ? "✅ Approved" : "❌ Denied",
     });
+
+    // Forward decision to Operator DO
+    yield* pipe(
+      operator.resolvePermission(permissionId, { approved }),
+      Effect.tapError((e) => Effect.logError(`Failed to resolve permission: ${e}`)),
+      Effect.catchAll(() => Effect.succeed(null)),
+    );
 
     // Update the message
     if (query.message) {
@@ -285,7 +313,6 @@ const handlePermissionResponse = (
       );
     }
 
-    // TODO: Forward decision to Operator DO
     yield* Effect.logInfo(`Permission ${permissionId} ${approved ? "approved" : "denied"}`);
   });
 
