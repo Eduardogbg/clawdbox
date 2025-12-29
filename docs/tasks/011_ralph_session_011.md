@@ -176,3 +176,7 @@ All of these require user action or environmental changes rather than code chang
 1. `5866f3b` - docs: add session 011 handoff and update TODOs
 2. `17f9c04` - test(agent-worker): add unit tests for Container DO and Worker
 3. `22f5b62` - ci: add agent-worker tests to CI workflow
+4. `56aa563` - docs: update session 011 handoff with commits
+5. `7f16d40` - docs: add agent notes with Docker troubleshooting
+6. `270e233` - test(telegram): add Worker entry point unit tests
+7. `609be70` - docs: update test counts to 129 total
