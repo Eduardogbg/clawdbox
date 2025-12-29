@@ -13,7 +13,7 @@ workers_dev = true
 [[containers]]
 class_name = "AgentContainerDO"
 image = "../agent-container/Dockerfile"
-instance_type = "basic"  # 1/4 vCPU, 1GB-4GB RAM
+instance_type = "basic"  # 1/4 vCPU, 1 GiB RAM, 4 GB disk
 max_instances = 5
 
 # Durable Objects configuration for container
