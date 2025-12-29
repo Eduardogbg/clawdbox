@@ -14,20 +14,27 @@ Branch: `ralph/alchemy-cloudflare-resources`
   - SQLite state tracking for container status
   - Configuration via `wrangler.toml` with container settings
 
-### 2. CI/CD Updates
+### 2. Operator Container Integration
+- Added `/tasks/:id/spawn` endpoint to spawn agent containers
+- Added `/container-stopped` callback for agent-worker notifications
+- Added `repoUrl` and `branch` fields to Task schema
+- Updated SQL schema and queries for new fields
+- Added `AGENT_WORKER_URL` environment variable
+
+### 3. CI/CD Updates
 - Added agent-worker typecheck to `ci.yml`
 - Added deploy-agent-worker job to `deploy.yml`
   - Optional deployment via workflow_dispatch
   - Builds agent-container before deploy
   - Uses wrangler deploy for container image
 
-### 3. Local Testing
+### 4. Local Testing
 - Created `packages/agent-container/scripts/test-local.sh`
   - Builds TypeScript and Docker image
   - Runs with test config
   - Requires ANTHROPIC_API_KEY
 
-### 4. IaC Tests
+### 5. IaC Tests
 - Verified all 10 tests pass (1 skip for R2)
 - Container test verifies Docker and wrangler availability
 
@@ -36,6 +43,7 @@ Branch: `ralph/alchemy-cloudflare-resources`
 packages/
 ├── iac/                    # Infrastructure as Code (WORKING)
 ├── operator/               # Operator Worker + DO (DEPLOYED)
+│   └── wrangler.toml       # Has AGENT_WORKER_URL config
 ├── agent-container/        # Docker container code (BUILT)
 ├── agent-worker/           # Worker with Container DO (NEW)
 │   ├── src/
@@ -45,6 +53,23 @@ packages/
 │   └── wrangler.toml       # Container config
 └── telegram-webhook/       # Telegram Bot Worker (READY)
 ```
+
+## API Endpoints Added
+
+### Operator
+- `POST /tasks/:id/spawn` - Spawn agent container for task
+  - Request body: `{ repoUrl?: string, branch?: string }` (optional overrides)
+  - Response: `{ status, taskId, sessionId, result }`
+- `POST /container-stopped` - Callback from agent-worker
+  - Request body: `{ taskId, exitCode }`
+  - Updates task status based on exit code
+
+### Agent Worker
+- `GET /` - Worker health check
+- `GET /agent/:id/status` - Container status
+- `POST /agent/:id/start` - Start container with config
+- `POST /agent/:id/stop` - Stop container
+- `GET /agent/:id/health` - Health check
 
 ## Remaining Work
 
@@ -59,28 +84,44 @@ cd packages/agent-container
 ### Deployment Sequence
 1. **Enable R2** on Cloudflare dashboard
 2. **Create Telegram bot** via @BotFather
-3. **Deploy agent-worker** with containers:
+3. **Deploy agent-worker**:
    ```bash
    cd packages/agent-worker
    wrangler deploy
    ```
-4. **Wire Operator to Agent Worker** - Update Operator to call agent-worker to spawn containers
-5. **Deploy Telegram Webhook** with bot token
+4. **Update Operator** with AGENT_WORKER_URL:
+   - Edit `packages/operator/wrangler.toml`
+   - Uncomment and set AGENT_WORKER_URL
+   - Redeploy Operator
+5. **Test spawn flow**:
+   ```bash
+   curl -X POST https://clawdbox-operator.eduardogbg.workers.dev/tasks \
+     -H "Content-Type: application/json" \
+     -d '{"prompt": "Test task", "repoUrl": "https://github.com/octocat/Hello-World"}'
+
+   curl -X POST https://clawdbox-operator.eduardogbg.workers.dev/tasks/{taskId}/spawn
+   ```
 
 ### Integration Checklist
-- [ ] Operator calls agent-worker `/agent/:id/start` to spawn container
-- [ ] Container reports back to Operator via `/session`, `/complete`, `/error`
+- [x] Operator calls agent-worker `/agent/:id/start` to spawn container
+- [x] Container reports back to Operator via `/container-stopped`
 - [ ] Permission flow: Agent -> Operator -> Telegram -> User -> Operator -> Agent
 - [ ] R2 repo snapshot/restore for container workspaces
 
 ## Commits This Session
 ```
+1c3537c feat(operator): add container spawning integration
+c7e9d69 docs: add Ralph Session 003 handoff document
 88a1455 Add agent-worker to CI/CD workflows
 4abf4a4 Add agent-worker package with Container DO for spawning Claude agents
 abe5439 Add container build CI workflow and fix Dockerfile
 ```
 
 ## Files Modified
+- `packages/operator/src/operator-do.ts` - Spawn and callback handlers
+- `packages/operator/src/sql.ts` - Updated schema with repoUrl, branch
+- `packages/operator/src/types.ts` - Added fields to Task schema
+- `packages/operator/wrangler.toml` - AGENT_WORKER_URL config
 - `packages/agent-container/Dockerfile` - Updated for bun.lock
 - `packages/agent-container/package.json` - Added --target bun
 - `packages/agent-container/scripts/test-local.sh` - NEW
@@ -99,5 +140,6 @@ abe5439 Add container build CI workflow and fix Dockerfile
 ## Next Agent Instructions
 1. Check if Docker network is working: `docker pull oven/bun:latest`
 2. If yes, run `./scripts/test-local.sh` in agent-container
-3. Then work on wiring Operator to spawn containers via agent-worker
-4. The Operator needs a binding to agent-worker or HTTP calls to its URL
+3. Deploy agent-worker to Cloudflare
+4. Set AGENT_WORKER_URL in Operator and redeploy
+5. Test the spawn flow end-to-end

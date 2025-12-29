@@ -12,7 +12,9 @@
 - [x] Implemented AgentContainerDO extending @cloudflare/containers
 - [x] Created container test script (scripts/test-local.sh)
 - [x] Added agent-worker to CI/CD workflows
-- [x] Created handoff document
+- [x] Wired Operator to spawn containers via agent-worker
+- [x] Added /container-stopped callback to Operator
+- [x] Added repoUrl and branch to Task schema
 
 ### Blocked/Deferred
 - [ ] Docker image build - network timeouts on image pull
@@ -34,6 +36,8 @@
   - SQLite-backed task/session/permission management
   - Full REST API for Worker integration
   - Agent reporting endpoints (/session, /complete, /error)
+  - Container spawning endpoint (/tasks/:id/spawn)
+  - Container stopped callback (/container-stopped)
 - [x] Telegram Webhook Worker (packages/telegram-webhook)
   - Integrated with Operator via OperatorClient
   - /task, /status, /help commands
@@ -46,7 +50,7 @@
 - [ ] Requires TELEGRAM_BOT_TOKEN (create via @BotFather)
 - [ ] Deploy and configure webhook URL
 
-## Phase 4: Agent Runtime - IN PROGRESS
+## Phase 4: Agent Runtime - MOSTLY COMPLETE
 - [x] Dockerfile for agent container
 - [x] Agent entrypoint using Claude Agent SDK
 - [x] Permission hook for tool use approval
@@ -56,14 +60,16 @@
   - HTTP API: /start, /stop, /status, /health
   - Lifecycle callbacks: onStart, onStop, onError
   - SQLite state tracking
+- [x] Operator integration for spawning containers
 - [ ] Build and test Docker image locally
 - [ ] Test actual container deployment with Docker
 
-## Phase 5: Full Integration - PENDING
+## Phase 5: Full Integration - IN PROGRESS
+- [x] Wire Operator to Agent Worker for spawning
 - [ ] Complete permission flow (Telegram -> Operator DO -> Container)
 - [ ] R2 repo snapshot/restore
 - [ ] GitHub integration
-- [ ] Wire Operator to Agent Worker for spawning
+- [ ] Deploy agent-worker and test
 
 ## CI/CD
 - [x] GitHub Actions CI for typecheck and tests (ci.yml)
@@ -76,8 +82,9 @@
 packages/
 ├── iac/                    # Infrastructure as Code
 ├── operator/               # Operator Worker + Durable Object
+│   └── wrangler.toml       # Has AGENT_WORKER_URL config
 ├── agent-container/        # Docker container code for Claude agents
-├── agent-worker/           # Worker with Container DO (NEW)
+├── agent-worker/           # Worker with Container DO
 │   ├── src/
 │   │   ├── index.ts        # Worker entry point
 │   │   ├── agent-container-do.ts  # Container DO class
@@ -102,5 +109,5 @@ packages/
 2. Create Telegram bot via @BotFather
 3. Build Docker container locally (when network permits)
 4. Deploy agent-worker to Cloudflare
-5. Wire Operator to spawn containers via agent-worker
+5. Set AGENT_WORKER_URL in Operator
 6. Complete end-to-end integration test
