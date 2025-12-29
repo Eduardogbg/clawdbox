@@ -60,6 +60,9 @@ jobs:
       - name: Run agent-container tests
         run: cd packages/agent-container && bunx vitest run
 
+      - name: Run agent-worker tests
+        run: cd packages/agent-worker && bunx vitest run
+
   test-integration:
     name: Integration Tests
     runs-on: ubuntu-latest
