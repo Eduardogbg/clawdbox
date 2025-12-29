@@ -40,7 +40,7 @@ export const createPermissionHook = (config: AgentConfig) => {
       return {}; // Allow
     }
 
-    // Request permission from Operator DO
+    // Request permission from Operator DO (synchronous long-poll endpoint)
     const response = await fetch(`${config.operatorUrl}/permission`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },

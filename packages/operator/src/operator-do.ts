@@ -183,6 +183,11 @@ export class OperatorDO extends DurableObject<Env> {
         return this.handleRequestPermission(request);
       }
 
+      // Synchronous permission request with long-polling for agent
+      if (url.pathname === "/permission" && method === "POST") {
+        return this.handleSyncPermission(request);
+      }
+
       if (url.pathname.match(/^\/permissions\/[^/]+$/) && method === "GET") {
         const id = url.pathname.split("/")[2];
         return this.handleGetPermission(id);
@@ -571,6 +576,116 @@ export class OperatorDO extends DurableObject<Env> {
     return new Response(JSON.stringify(permission), {
       headers: { "Content-Type": "application/json" },
     });
+  }
+
+  /**
+   * Handle synchronous permission request with long-polling
+   * Agent sends this and waits for approval/denial
+   */
+  private async handleSyncPermission(request: Request): Promise<Response> {
+    const body = await request.json();
+    const { taskId, toolUseId, toolName, toolInput } = body as {
+      taskId: string;
+      toolUseId: string;
+      toolName: string;
+      toolInput: string;
+    };
+
+    if (!taskId || !toolUseId || !toolName || !toolInput) {
+      return new Response(
+        JSON.stringify({ error: "taskId, toolUseId, toolName, and toolInput are required" }),
+        {
+          status: 400,
+          headers: { "Content-Type": "application/json" },
+        }
+      );
+    }
+
+    // Get the session for this task
+    const sessionRow = this.ctx.storage.sql.exec(SQL.GET_SESSION_BY_TASK, taskId).one();
+    if (!sessionRow) {
+      return new Response(JSON.stringify({ error: "Session not found for task" }), {
+        status: 404,
+        headers: { "Content-Type": "application/json" },
+      });
+    }
+
+    const session = rowToSession(sessionRow);
+
+    // Create the permission request
+    const permission: Permission = {
+      id: toolUseId,
+      sessionId: session.id,
+      toolName,
+      toolInput,
+      status: "pending",
+      createdAt: now(),
+    };
+
+    this.ctx.storage.sql.exec(
+      SQL.INSERT_PERMISSION,
+      permission.id,
+      permission.sessionId,
+      permission.toolName,
+      permission.toolInput,
+      permission.status,
+      permission.createdAt
+    );
+
+    console.log(`[Permission][${taskId}]: Requesting approval for ${toolName}`);
+
+    // Long-poll for up to 5 minutes (300 seconds)
+    const maxWait = 300 * 1000;
+    const pollInterval = 500; // Check every 500ms
+    const startTime = Date.now();
+
+    while (Date.now() - startTime < maxWait) {
+      // Check if permission was resolved
+      const row = this.ctx.storage.sql.exec(SQL.GET_PERMISSION, toolUseId).one();
+      if (!row) {
+        return new Response(JSON.stringify({ approved: false, reason: "Permission not found" }), {
+          headers: { "Content-Type": "application/json" },
+        });
+      }
+
+      const p = rowToPermission(row);
+
+      if (p.status === "approved") {
+        console.log(`[Permission][${taskId}]: ${toolName} approved`);
+        return new Response(JSON.stringify({ approved: true }), {
+          headers: { "Content-Type": "application/json" },
+        });
+      }
+
+      if (p.status === "denied") {
+        console.log(`[Permission][${taskId}]: ${toolName} denied - ${p.reason}`);
+        return new Response(JSON.stringify({ approved: false, reason: p.reason }), {
+          headers: { "Content-Type": "application/json" },
+        });
+      }
+
+      if (p.status === "expired") {
+        console.log(`[Permission][${taskId}]: ${toolName} expired`);
+        return new Response(JSON.stringify({ approved: false, reason: "Permission request expired" }), {
+          headers: { "Content-Type": "application/json" },
+        });
+      }
+
+      // Sleep before next poll
+      await new Promise((resolve) => setTimeout(resolve, pollInterval));
+    }
+
+    // Timeout - mark as expired and deny
+    this.ctx.storage.sql.exec(SQL.UPDATE_PERMISSION, "expired", "Timeout", now(), toolUseId);
+
+    console.log(`[Permission][${taskId}]: ${toolName} timed out`);
+
+    return new Response(
+      JSON.stringify({ approved: false, reason: "Permission request timed out" }),
+      {
+        headers: { "Content-Type": "application/json" },
+      }
+    );
   }
 
   /**

@@ -19,6 +19,23 @@ interface Task {
   branch?: string;
 }
 
+interface Session {
+  id: string;
+  taskId: string;
+  status: string;
+  containerId?: string;
+  claudeSessionId?: string;
+}
+
+interface Permission {
+  id: string;
+  sessionId: string;
+  toolName: string;
+  toolInput: string;
+  status: string;
+  reason?: string;
+}
+
 interface TasksResponse {
   tasks: Task[];
 }
@@ -160,5 +177,201 @@ describe("Operator E2E Integration", () => {
     expect(response.status).toBe(400);
     const data = await response.json();
     expect(data).toHaveProperty("error");
+  });
+});
+
+describe("Operator Session & Permission Flow", () => {
+  let taskId: string;
+  let sessionId: string;
+  let permissionId: string;
+
+  it("should create task and session for permission testing", async () => {
+    // Create a task
+    const taskResponse = await fetch(`${OPERATOR_URL}/tasks`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        prompt: "Test task for permission flow",
+        repoUrl: "https://github.com/test/permission-flow",
+        branch: "main",
+      }),
+    });
+
+    expect(taskResponse.status).toBe(201);
+    const task = (await taskResponse.json()) as Task;
+    taskId = task.id;
+
+    // Create a session for this task
+    const sessionResponse = await fetch(`${OPERATOR_URL}/sessions`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        taskId,
+        containerId: "test-container-1",
+      }),
+    });
+
+    expect(sessionResponse.status).toBe(201);
+    const session = (await sessionResponse.json()) as Session;
+    sessionId = session.id;
+    expect(session.taskId).toBe(taskId);
+    expect(session.status).toBe("starting");
+
+    // Task should now be active
+    const taskCheck = await fetch(`${OPERATOR_URL}/tasks/${taskId}`);
+    const updatedTask = (await taskCheck.json()) as Task;
+    expect(updatedTask.status).toBe("active");
+  });
+
+  it("should get session by id", async () => {
+    const response = await fetch(`${OPERATOR_URL}/sessions/${sessionId}`);
+    expect(response.ok).toBe(true);
+
+    const session = (await response.json()) as Session;
+    expect(session.id).toBe(sessionId);
+  });
+
+  it("should create permission request via async endpoint", async () => {
+    permissionId = crypto.randomUUID();
+    const response = await fetch(`${OPERATOR_URL}/permissions`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        taskId,
+        toolUseId: permissionId,
+        toolName: "Bash",
+        toolInput: JSON.stringify({ command: "rm -rf /dangerous" }),
+      }),
+    });
+
+    expect(response.status).toBe(201);
+    const permission = (await response.json()) as Permission;
+    expect(permission.id).toBe(permissionId);
+    expect(permission.status).toBe("pending");
+    expect(permission.toolName).toBe("Bash");
+  });
+
+  it("should get permission by id", async () => {
+    const response = await fetch(`${OPERATOR_URL}/permissions/${permissionId}`);
+    expect(response.ok).toBe(true);
+
+    const permission = (await response.json()) as Permission;
+    expect(permission.id).toBe(permissionId);
+    expect(permission.status).toBe("pending");
+  });
+
+  it("should resolve permission as denied", async () => {
+    const response = await fetch(`${OPERATOR_URL}/permissions/${permissionId}/resolve`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        approved: false,
+        reason: "Too dangerous",
+      }),
+    });
+
+    expect(response.ok).toBe(true);
+    const permission = (await response.json()) as Permission;
+    expect(permission.status).toBe("denied");
+    expect(permission.reason).toBe("Too dangerous");
+  });
+
+  it("should not allow resolving already resolved permission", async () => {
+    const response = await fetch(`${OPERATOR_URL}/permissions/${permissionId}/resolve`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        approved: true,
+      }),
+    });
+
+    expect(response.status).toBe(409);
+  });
+
+  it("should handle session reporting", async () => {
+    const response = await fetch(`${OPERATOR_URL}/session`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        taskId,
+        sessionId: "claude-sdk-session-123",
+      }),
+    });
+
+    expect(response.ok).toBe(true);
+    const result = await response.json();
+    expect(result).toHaveProperty("received", true);
+  });
+
+  it("should handle stream messages", async () => {
+    const response = await fetch(`${OPERATOR_URL}/stream`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        taskId,
+        text: "Agent is processing...",
+        type: "text",
+      }),
+    });
+
+    expect(response.ok).toBe(true);
+    const result = await response.json();
+    expect(result).toHaveProperty("received", true);
+  });
+
+  it("should handle task completion", async () => {
+    const response = await fetch(`${OPERATOR_URL}/complete`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        taskId,
+        result: { success: true, message: "All done!" },
+      }),
+    });
+
+    expect(response.ok).toBe(true);
+
+    // Check task is now completed
+    const taskCheck = await fetch(`${OPERATOR_URL}/tasks/${taskId}`);
+    const task = (await taskCheck.json()) as Task;
+    expect(task.status).toBe("completed");
+  });
+
+  it("should handle error reporting", async () => {
+    // Create a new task for error testing
+    const taskResponse = await fetch(`${OPERATOR_URL}/tasks`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        prompt: "Test task for error",
+      }),
+    });
+    const newTask = (await taskResponse.json()) as Task;
+
+    // Create session
+    await fetch(`${OPERATOR_URL}/sessions`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        taskId: newTask.id,
+      }),
+    });
+
+    // Report error
+    const response = await fetch(`${OPERATOR_URL}/error`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        taskId: newTask.id,
+        error: "Something went wrong",
+      }),
+    });
+
+    expect(response.ok).toBe(true);
+
+    // Check task is now failed
+    const taskCheck = await fetch(`${OPERATOR_URL}/tasks/${newTask.id}`);
+    const task = (await taskCheck.json()) as Task;
+    expect(task.status).toBe("failed");
   });
 });

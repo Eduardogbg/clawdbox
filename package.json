@@ -6,8 +6,8 @@
     "packages/*"
   ],
   "scripts": {
-    "typecheck": "bun run --filter='packages/*' tsc --noEmit",
-    "test": "bunx vitest run",
+    "typecheck": "for pkg in agent-container agent-worker iac operator telegram-webhook; do echo \"=== $pkg ===\" && (cd packages/$pkg && bunx tsc --noEmit) || exit 1; done",
+    "test": "cd packages/iac && bunx vitest run",
     "test:iac": "cd packages/iac && bunx vitest run"
   },
   "devDependencies": {
