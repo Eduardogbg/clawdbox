@@ -11,9 +11,12 @@
 - [x] Created agent-worker package with Container DO
 - [x] Implemented AgentContainerDO extending @cloudflare/containers
 - [x] Created container test script (scripts/test-local.sh)
+- [x] Added agent-worker to CI/CD workflows
+- [x] Created handoff document
 
-### In Progress
-- [ ] Docker build of agent-container (network slow, image pull taking time)
+### Blocked/Deferred
+- [ ] Docker image build - network timeouts on image pull
+- [ ] Docker image testing - waiting on build
 
 ---
 
@@ -66,7 +69,7 @@
 - [x] GitHub Actions CI for typecheck and tests (ci.yml)
 - [x] Deployment workflow for Workers (deploy.yml)
 - [x] Container build/push workflow (container.yml)
-- [ ] Add agent-worker to deployment workflow
+- [x] Agent-worker in deployment workflow (optional deploy)
 
 ## Package Structure
 ```
