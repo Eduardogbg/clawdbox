@@ -3,31 +3,14 @@
  *
  * This demonstrates how to spawn and communicate with a Container
  * from a Cloudflare Worker.
+ *
+ * Note: In actual deployment, you would import { Container } from "@cloudflare/containers"
+ * and extend it. This is a simplified test fixture since @cloudflare/containers
+ * types need to be installed in the actual deployment project.
  */
-import { Container } from "@cloudflare/containers";
 
 export interface Env {
-  TEST_CONTAINER: DurableObjectNamespace<TestContainer>;
-}
-
-/**
- * Simple test container that echoes requests
- */
-export class TestContainer extends Container {
-  defaultPort = 8080;
-  sleepAfter = "10s";
-
-  override onStart(): void {
-    console.log("TestContainer started");
-  }
-
-  override onStop(): void {
-    console.log("TestContainer stopped");
-  }
-
-  override onError(error: unknown): void {
-    console.error("TestContainer error:", error);
-  }
+  TEST_CONTAINER: DurableObjectNamespace;
 }
 
 export default {

@@ -1,8 +1,8 @@
 /**
  * Agent Container Entrypoint
  *
- * This is the main entry point for the Claude Agent SDK container.
- * It orchestrates:
+ * Main entry point for the Claude Agent SDK container running on Cloudflare Containers.
+ * Orchestrates:
  * 1. Configuration parsing
  * 2. Repository cloning
  * 3. Agent execution with permission hooks
@@ -12,6 +12,7 @@ import * as Effect from "effect/Effect";
 import * as S from "effect/Schema";
 import { pipe } from "effect/Function";
 import { LogLevel, Logger } from "effect";
+import { query, type HookCallback } from "@anthropic-ai/claude-agent-sdk";
 
 import { AgentConfig, AgentEnv } from "./config.js";
 import { cloneRepo, pushChanges } from "./repo.js";
@@ -62,68 +63,84 @@ const main = Effect.gen(function* () {
 
 /**
  * Run the Claude Agent SDK
- *
- * Note: The actual Agent SDK integration requires @anthropic-ai/claude-agent-sdk
- * which would be installed in the container. This is a placeholder that shows
- * the intended structure.
  */
 const runAgent = (config: AgentConfig) =>
   Effect.gen(function* () {
     yield* Effect.logInfo("Starting Claude Agent SDK...");
 
-    // In production, this would use the actual Agent SDK:
-    // import { query } from "@anthropic-ai/claude-agent-sdk";
+    const workingDirectory = config.workingDirectory ?? "/workspace";
+    const permissionHook = createPermissionHook(config) as HookCallback;
 
-    // For now, we'll simulate the agent behavior
-    yield* Effect.logInfo("Agent SDK would be invoked here with:");
-    yield* Effect.logInfo(`  Prompt: ${config.prompt}`);
-    yield* Effect.logInfo(`  Working Directory: ${config.workingDirectory ?? "/workspace"}`);
-    yield* Effect.logInfo(`  Session ID: ${config.sessionId ?? "new session"}`);
-
-    // The actual implementation would look like:
-    /*
+    // Agent options
     const options = {
-      allowedTools: ["Read", "Write", "Edit", "Bash", "Glob", "Grep"],
+      allowedTools: [
+        "Read",
+        "Write",
+        "Edit",
+        "Bash",
+        "Glob",
+        "Grep",
+        "WebSearch",
+        "WebFetch",
+        "TodoRead",
+        "TodoWrite",
+        "LSP",
+        "Task",
+      ],
       permissionMode: "default" as const,
-      workingDirectory: config.workingDirectory ?? "/workspace",
+      workingDirectory,
       hooks: {
         PreToolUse: [
           {
-            matcher: "Bash|Write|Edit",
-            hooks: [createPermissionHook(config)],
+            // Only hook dangerous tools
+            matcher: "Bash|Write|Edit|Task",
+            hooks: [permissionHook],
           },
         ],
       },
+      // Resume from previous session if provided
       ...(config.sessionId ? { resume: config.sessionId } : {}),
     };
 
     let sessionId: string | undefined;
 
-    for await (const message of query({
-      prompt: config.prompt,
-      options,
-    })) {
-      // Capture session ID for resume capability
-      if (message.type === "system" && message.subtype === "init") {
-        sessionId = message.session_id;
-        yield* reportSessionId(config.operatorUrl, config.taskId, sessionId);
-      }
+    // Run the agent loop
+    yield* Effect.tryPromise({
+      try: async () => {
+        for await (const message of query({
+          prompt: config.prompt,
+          options,
+        })) {
+          // Capture session ID for resume capability
+          if (
+            message.type === "system" &&
+            "subtype" in message &&
+            message.subtype === "init" &&
+            "session_id" in message
+          ) {
+            sessionId = message.session_id as string;
+            await Effect.runPromise(
+              reportSessionId(config.operatorUrl, config.taskId, sessionId),
+            );
+          }
 
-      // Stream output to Operator DO
-      yield* streamToOperator(config.operatorUrl, config.taskId, message);
+          // Stream output to Operator DO
+          await Effect.runPromise(
+            streamToOperator(config.operatorUrl, config.taskId, message),
+          );
 
-      // Handle completion
-      if ("result" in message) {
-        yield* reportCompletion(config.operatorUrl, config.taskId, message.result);
-      }
-    }
-    */
-
-    // Placeholder: Report completion
-    yield* reportCompletion(config.operatorUrl, config.taskId, {
-      status: "completed",
-      message: "Agent execution simulated successfully",
+          // Handle completion
+          if ("result" in message) {
+            await Effect.runPromise(
+              reportCompletion(config.operatorUrl, config.taskId, message.result),
+            );
+          }
+        }
+      },
+      catch: (error) => new Error(`Agent execution failed: ${error}`),
     });
+
+    yield* Effect.logInfo("Agent SDK completed successfully");
   });
 
 /**
