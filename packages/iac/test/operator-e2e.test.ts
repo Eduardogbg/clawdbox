@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeAll, afterAll } from "@effect/vitest";
+import { describe, it, expect, afterAll } from "@effect/vitest";
 
 /**
  * Operator Worker E2E Integration Test
@@ -9,6 +9,23 @@ import { describe, it, expect, beforeAll, afterAll } from "@effect/vitest";
 
 const OPERATOR_URL =
   process.env.OPERATOR_URL || "https://clawdbox-operator.eduardogbg.workers.dev";
+
+// Type definitions for API responses
+interface Task {
+  id: string;
+  prompt: string;
+  status: string;
+  repoUrl?: string;
+  branch?: string;
+}
+
+interface TasksResponse {
+  tasks: Task[];
+}
+
+interface ErrorResponse {
+  error: string;
+}
 
 describe("Operator E2E Integration", () => {
   let testTaskId: string | null = null;
@@ -42,7 +59,7 @@ describe("Operator E2E Integration", () => {
 
     expect(response.status).toBe(201);
 
-    const task = await response.json();
+    const task = (await response.json()) as Task;
     expect(task).toHaveProperty("id");
     expect(task).toHaveProperty("prompt", "Test task from E2E test");
     expect(task).toHaveProperty("status", "pending");
@@ -63,14 +80,14 @@ describe("Operator E2E Integration", () => {
           prompt: "Test task for get",
         }),
       });
-      const created = await createResponse.json();
+      const created = (await createResponse.json()) as Task;
       testTaskId = created.id;
     }
 
     const response = await fetch(`${OPERATOR_URL}/tasks/${testTaskId}`);
     expect(response.ok).toBe(true);
 
-    const task = await response.json();
+    const task = (await response.json()) as Task;
     expect(task).toHaveProperty("id", testTaskId);
     expect(task).toHaveProperty("prompt");
   });
@@ -79,7 +96,7 @@ describe("Operator E2E Integration", () => {
     const response = await fetch(`${OPERATOR_URL}/tasks`);
     expect(response.ok).toBe(true);
 
-    const data = await response.json();
+    const data = (await response.json()) as TasksResponse;
     expect(data).toHaveProperty("tasks");
     expect(Array.isArray(data.tasks)).toBe(true);
   });
@@ -88,7 +105,7 @@ describe("Operator E2E Integration", () => {
     const response = await fetch(`${OPERATOR_URL}/tasks?status=pending`);
     expect(response.ok).toBe(true);
 
-    const data = await response.json();
+    const data = (await response.json()) as TasksResponse;
     expect(data).toHaveProperty("tasks");
     expect(Array.isArray(data.tasks)).toBe(true);
 
@@ -108,7 +125,7 @@ describe("Operator E2E Integration", () => {
           prompt: "Test task for status update",
         }),
       });
-      const created = await createResponse.json();
+      const created = (await createResponse.json()) as Task;
       testTaskId = created.id;
     }
 
