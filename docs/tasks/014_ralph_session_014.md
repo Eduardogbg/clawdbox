@@ -57,6 +57,8 @@ TypeCheck passes for all 5 packages.
 4. `78594c7` - docs: add session 14 handoff and update TODO
 5. `4135be8` - chore: exclude repro-sdk-bug from pnpm workspace
 6. `4f10225` - fix(telegram-webhook): update wrangler.toml configuration
+7. `6081442` - docs: update session 14 handoff with additional work
+8. `9a122e5` - docs: update root TODO.md with session 014 status
 
 ## Current Branch
 `ralph/alchemy-cloudflare-resources`
