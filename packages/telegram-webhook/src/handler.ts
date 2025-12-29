@@ -116,10 +116,7 @@ Each task runs in its own thread where you can:
         break;
 
       case "/status":
-        yield* telegram.sendMessage({
-          chat_id: chatId,
-          text: "📊 Status: No active tasks.\n\nUse /task to create a new task.",
-        });
+        yield* handleStatus(message, ctx);
         break;
 
       case "/help":
@@ -332,6 +329,75 @@ const handleCancelTask = (query: CallbackQuery, ctx: HandlerContext) =>
 
     // TODO: Forward to Operator DO
     yield* Effect.logInfo(`Task ${taskId} cancellation requested`);
+  });
+
+/**
+ * Handle /status command - show active and recent tasks
+ */
+const handleStatus = (message: Message, ctx: HandlerContext) =>
+  Effect.gen(function* () {
+    const { telegram, operator } = ctx;
+    const chatId = message.chat.id;
+
+    // Get active tasks
+    const activeTasks = yield* pipe(
+      operator.listTasks({ status: "active", limit: 5 }),
+      Effect.catchAll(() => Effect.succeed([] as Array<{ id: string; prompt: string; status: string }>)),
+    );
+
+    // Get pending tasks
+    const pendingTasks = yield* pipe(
+      operator.listTasks({ status: "pending", limit: 5 }),
+      Effect.catchAll(() => Effect.succeed([] as Array<{ id: string; prompt: string; status: string }>)),
+    );
+
+    // Get recent completed/failed tasks
+    const recentTasks = yield* pipe(
+      operator.listTasks({ limit: 5 }),
+      Effect.map((tasks) =>
+        tasks.filter(
+          (t) => t.status === "completed" || t.status === "failed"
+        ).slice(0, 3)
+      ),
+      Effect.catchAll(() => Effect.succeed([] as Array<{ id: string; prompt: string; status: string }>)),
+    );
+
+    let statusText = "📊 <b>Task Status</b>\n\n";
+
+    if (activeTasks.length > 0) {
+      statusText += "🔄 <b>Active:</b>\n";
+      for (const task of activeTasks) {
+        statusText += `• <code>${task.id.substring(0, 8)}</code> - ${escapeHtml(task.prompt.substring(0, 30))}...\n`;
+      }
+      statusText += "\n";
+    }
+
+    if (pendingTasks.length > 0) {
+      statusText += "⏳ <b>Pending:</b>\n";
+      for (const task of pendingTasks) {
+        statusText += `• <code>${task.id.substring(0, 8)}</code> - ${escapeHtml(task.prompt.substring(0, 30))}...\n`;
+      }
+      statusText += "\n";
+    }
+
+    if (recentTasks.length > 0) {
+      statusText += "📋 <b>Recent:</b>\n";
+      for (const task of recentTasks) {
+        const icon = task.status === "completed" ? "✅" : "❌";
+        statusText += `${icon} <code>${task.id.substring(0, 8)}</code> - ${escapeHtml(task.prompt.substring(0, 30))}...\n`;
+      }
+      statusText += "\n";
+    }
+
+    if (activeTasks.length === 0 && pendingTasks.length === 0 && recentTasks.length === 0) {
+      statusText += "No tasks found.\n\nUse /task to create a new task.";
+    }
+
+    yield* telegram.sendMessage({
+      chat_id: chatId,
+      text: statusText,
+      parse_mode: "HTML",
+    });
   });
 
 /**
