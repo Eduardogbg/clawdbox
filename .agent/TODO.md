@@ -38,10 +38,11 @@
 - [ ] Telegram Bot integration (bot token not available)
 - [ ] Git push (no remote configured)
 
-## In Progress This Session
-- [ ] Try Docker build again with different network options
-- [ ] Explore Cloudflare Containers beta
-- [ ] Review IaC configuration for containers
+## Completed This Session
+- [x] Try Docker build again with different network options - still blocked
+- [x] Explore Cloudflare Containers beta - documented in CLOUDFLARE.md
+- [x] Review IaC configuration for containers - wrangler.toml is correct
+- [x] Add comprehensive Cloudflare Containers documentation
 
 ## Ready for Future Sessions
 - [ ] Once Docker registry fixed: build and push agent-container
@@ -204,3 +205,5 @@ Likely requires Docker Desktop restart or network reconfiguration.
 
 ## Commits This Session (13)
 1. Fix vitest version mismatch for @effect/vitest compatibility
+2. Add Cloudflare Containers reference documentation
+3. Fix instance type comment in agent-worker wrangler.toml
