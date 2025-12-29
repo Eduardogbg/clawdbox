@@ -98,14 +98,24 @@ Repository not pushed to GitHub yet.
 1. `a04b442` - test(iac): add D1, KV, and Queue integration tests
 2. `d6c3f70` - test(agent-container): add repo logic unit tests
 3. `4977d72` - feat(iac): add KV and D1 resources to stack
+4. `c8031b8` - docs: add session 012 handoff document
+5. `1c5c0f4` - feat(iac): add deployment script for infrastructure stack
+
+## Deployed Resources
+
+Successfully deployed to Cloudflare using `bun run deploy`:
+- **Secrets Store**: fa244b9afdd6412299dac28acf0fc83f (deleted to allow tests)
+- **KV Namespace**: cc2f5049126a4d0ea2540e25183706f5 (still deployed)
+- **D1 Database**: d0f57459-2af7-42f8-a09b-46626014811d (still deployed)
+
+Note: Secrets Store deleted because free plan limits to 1 store.
 
 ## Next Session Priorities
 
 1. **Docker Resolution** - Restart Docker Desktop and retry container build
 2. **R2 Activation** - Enable R2 in Cloudflare dashboard and run test
 3. **GitHub Repository** - Create remote and push code
-4. **Deploy Stack** - Run `bun run alchemy` to deploy KV + D1 + Secrets
-5. **Telegram Bot** - Create bot via @BotFather and configure webhook
+4. **Telegram Bot** - Create bot via @BotFather and configure webhook
 
 ## Architecture Summary
 

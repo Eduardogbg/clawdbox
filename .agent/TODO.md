@@ -201,3 +201,11 @@ Likely requires Docker Desktop restart or network reconfiguration.
 1. `a04b442` - test(iac): add D1, KV, and Queue integration tests
 2. `d6c3f70` - test(agent-container): add repo logic unit tests
 3. `4977d72` - feat(iac): add KV and D1 resources to stack
+4. `c8031b8` - docs: add session 012 handoff document
+5. `1c5c0f4` - feat(iac): add deployment script for infrastructure stack
+
+## Deployed Resources (production)
+Deployed via `bun run deploy` but destroyed to allow tests to pass:
+- Secrets Store: fa244b9afdd6412299dac28acf0fc83f (deleted)
+- KV Namespace: cc2f5049126a4d0ea2540e25183706f5 (still deployed)
+- D1 Database: d0f57459-2af7-42f8-a09b-46626014811d (still deployed)
