@@ -1,11 +1,10 @@
 # Clawdbox Project TODO
 
-## Session 9 Status
-- All 33 tests passing
+## Session 11 Status
+- All 89 tests passing (IAC: 33, Telegram: 33, Agent-container: 23)
 - TypeCheck passes for all packages
-- Docker Hub still unreachable (100% packet loss)
+- Docker buildkit still has registry connectivity issues
 - No git remote configured
-- Session focused on verification, no new code changes
 
 ## Completed
 - [x] Fix alchemy-effect dependency to use local fork (tgz tarball)
@@ -26,15 +25,16 @@
 - [x] Deploy Operator Worker to Cloudflare
 - [x] Create Dockerfile.alpine alternative for network issues
 - [x] Verify alchemy-effect fork integration
+- [x] Add comprehensive unit tests for all packages
 
 ## Blocked
 - [ ] Test R2 bucket deployment (R2 not enabled in CF dashboard)
-- [ ] Container deployment testing (Docker Hub network issue)
+- [ ] Container deployment testing (Docker buildkit registry timeout)
 - [ ] Telegram Bot integration (bot token not available)
 - [ ] Git push (no remote configured)
 
 ## Ready for Next Session
-- [ ] Once Docker Hub accessible: build and test agent-container
+- [ ] Once Docker registry fixed: build and push agent-container
 - [ ] Once R2 enabled: run R2 test
 - [ ] Once Telegram token available: configure webhook
 - [ ] Create GitHub repository and push code
@@ -60,6 +60,7 @@ packages/
 │       └── sql.ts          # SQL queries
 ├── agent-container/        # Claude Agent SDK Container
 │   ├── Dockerfile          # Bun + Node.js + claude-code
+│   ├── Dockerfile.alpine   # Alpine alternative
 │   └── src/
 │       ├── entrypoint.ts   # Main entry point
 │       ├── config.ts       # Schema for agent config
@@ -100,8 +101,9 @@ packages/
 - Workers: ENABLED (test passes)
 - Containers: Beta feature (needs special configuration)
 
-## Test Results (Session 9)
+## Test Results (Session 11)
 ```
+=== IAC Package (33 tests) ===
  ✓ test/operator.test.ts (2 tests)
  ✓ test/r2-bucket.test.ts (2 tests | 1 skipped)
  ✓ test/container.test.ts (3 tests)
@@ -109,8 +111,16 @@ packages/
  ✓ test/worker.test.ts (2 tests)
  ✓ test/secrets-store.test.ts (2 tests)
 
- Test Files  6 passed (6)
-      Tests  33 passed | 1 skipped (34)
+=== Telegram Package (33 tests) ===
+ ✓ test/handler.test.ts (10 tests)
+ ✓ test/operator-client.test.ts (11 tests)
+ ✓ test/telegram.test.ts (12 tests)
+
+=== Agent Container Package (23 tests) ===
+ ✓ test/config.test.ts (9 tests)
+ ✓ test/permission.test.ts (14 tests)
+
+ Total: 89 tests passed | 1 skipped (90)
 ```
 
 ## Alchemy-Effect Fork Details
@@ -154,3 +164,11 @@ Exports added:
 
 ### Container
 - `POST /container-stopped` - Container stopped callback
+
+## Docker Issues (Session 11)
+Docker buildkit cannot fetch metadata from docker.io even when:
+- Images exist locally (alpine:3.17 available)
+- Network ping works to hub.docker.com
+- Various flags tried: --pull=false, --no-cache, DOCKER_BUILDKIT=0
+
+Likely requires Docker Desktop restart or network reconfiguration.
