@@ -1,17 +1,12 @@
 # Clawdbox TODO
 
-## Current Session: Ralph Session 005
+## Current Session: Ralph Session 009
 
 ### Completed This Session
-- [x] Fixed root package.json scripts (typecheck, test)
-- [x] Added synchronous `/permission` endpoint with long-polling (5min timeout)
-- [x] Updated agent-container to use correct permission endpoint
-- [x] Added comprehensive E2E tests for session/permission flow (28 tests passing)
-- [x] Created ARCHITECTURE.md documentation
-- [x] Implemented `/status` command in Telegram (queries Operator)
-- [x] Added GET `/tasks/:id/permissions` for pending permissions
-- [x] Added `getTaskPermissions` to operator client
-- [x] Deployed Operator with all new endpoints (v: 6474d407)
+- [x] Verified all 33 tests passing
+- [x] Verified all typechecks pass
+- [x] Verified alchemy-effect fork integration is complete
+- [x] Created session 009 handoff document
 
 ### Blocked/Deferred
 - [ ] Docker image build - 100% packet loss to Docker Hub
@@ -37,34 +32,26 @@
   - Agent reporting endpoints (/session, /complete, /error)
   - Container spawning endpoint (/tasks/:id/spawn)
   - Container stopped callback (/container-stopped)
-  - **NEW: Synchronous /permission endpoint with long-polling**
-- [x] Telegram Webhook Worker (packages/telegram-webhook)
-  - Integrated with Operator via OperatorClient
-  - /task, /status, /help commands
-  - Permission approval/denial flow
+  - Synchronous /permission endpoint with long-polling
 
 ## Phase 3: Telegram Integration - BLOCKED (needs bot token)
 - [x] Webhook handler with validation
-- [x] Bot commands: /task, /status, /help
+- [x] Bot commands: /task, /status, /help, /cancel
 - [x] Topic management (forum support)
 - [ ] Requires TELEGRAM_BOT_TOKEN (create via @BotFather)
 - [ ] Deploy and configure webhook URL
 
 ## Phase 4: Agent Runtime - MOSTLY COMPLETE
-- [x] Dockerfile for agent container
+- [x] Dockerfile for agent container (+ Alpine alternative)
 - [x] Agent entrypoint using Claude Agent SDK
 - [x] Permission hook for tool use approval (uses /permission endpoint)
 - [x] Container build CI workflow
 - [x] Agent Worker with Container DO (packages/agent-worker)
-  - AgentContainerDO extends @cloudflare/containers Container
-  - HTTP API: /start, /stop, /status, /health
-  - Lifecycle callbacks: onStart, onStop, onError
-  - SQLite state tracking
 - [x] Operator integration for spawning containers
 - [ ] Build and test Docker image locally (blocked: Docker Hub unreachable)
 - [ ] Test actual container deployment with Docker
 
-## Phase 5: Full Integration - IN PROGRESS
+## Phase 5: Full Integration - PENDING
 - [x] Wire Operator to Agent Worker for spawning
 - [x] Permission flow (Agent -> Operator DO -> Long-poll -> Resolution)
 - [ ] R2 repo snapshot/restore (needs R2 enabled)
@@ -80,34 +67,27 @@
 ## Package Structure
 ```
 packages/
-├── iac/                    # Infrastructure as Code (18 tests)
+├── iac/                    # Infrastructure as Code (33 tests)
 ├── operator/               # Operator Worker + Durable Object
-│   └── wrangler.toml       # Has AGENT_WORKER_URL config
 ├── agent-container/        # Docker container code for Claude agents
 ├── agent-worker/           # Worker with Container DO
-│   ├── src/
-│   │   ├── index.ts        # Worker entry point
-│   │   ├── agent-container-do.ts  # Container DO class
-│   │   └── types.ts
-│   └── wrangler.toml       # Container configuration
 └── telegram-webhook/       # Telegram Bot Worker
 ```
 
 ## Deployed Resources
 - [x] Operator Worker: https://clawdbox-operator.eduardogbg.workers.dev
-  - Version: 2bdabcec-7253-41d3-8c8f-2589e0ce5cf6
 
-## Test Results (Session 005)
+## Test Results (Session 009)
 ```
  ✓ test/operator.test.ts (2 tests)
  ✓ test/r2-bucket.test.ts (2 tests | 1 skipped)
  ✓ test/container.test.ts (3 tests)
- ✓ test/operator-e2e.test.ts (18 tests)  <- NEW tests added
+ ✓ test/operator-e2e.test.ts (23 tests)
  ✓ test/worker.test.ts (2 tests)
  ✓ test/secrets-store.test.ts (2 tests)
 
  Test Files  6 passed (6)
-      Tests  28 passed | 1 skipped (29)
+      Tests  33 passed | 1 skipped (34)
 ```
 
 ## Known Issues
