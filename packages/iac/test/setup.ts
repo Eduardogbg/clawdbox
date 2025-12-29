@@ -2,7 +2,12 @@ import { config } from "dotenv";
 import * as Layer from "effect/Layer";
 import { FetchHttpClient } from "@effect/platform";
 import { NodeContext } from "@effect/platform-node";
-import { make as makeApp, State, DotAlchemy, dotAlchemy } from "alchemy-effect";
+import {
+  make as makeApp,
+  State,
+  dotAlchemy,
+} from "alchemy-effect";
+import { testCLI } from "alchemy-effect/test";
 
 config({ path: ".env" });
 
@@ -21,7 +26,8 @@ export function testName(base: string): string {
 }
 
 // Create a test context with in-memory state
-export function createTestContext(name: string) {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export function createTestContext(name: string): Layer.Layer<any, any, any> {
   const app = makeApp({
     name: name.replaceAll(/[^a-zA-Z0-9_-]/g, "-"),
     stage: "test",
@@ -39,7 +45,7 @@ export function createTestContext(name: string) {
   const platform = Layer.mergeAll(NodeContext.layer, FetchHttpClient.layer);
 
   const alchemy = Layer.provideMerge(
-    Layer.mergeAll(state, dotAlchemy),
+    Layer.mergeAll(state, dotAlchemy, testCLI),
     app,
   );
 
