@@ -4,12 +4,14 @@
 
 ### Completed This Session
 - [x] Fixed vitest version for @effect/vitest compatibility (^3.2.0)
-- [x] All IaC tests passing (10 pass, 1 skip)
+- [x] All IaC tests passing (18 pass, 1 skip)
 - [x] Added root typecheck and test scripts
-- [ ] Docker image build in progress (network slow)
+- [x] Added database migration for repo_url and branch columns
+- [x] Created Operator E2E tests (8 tests passing)
+- [x] Redeployed Operator with migration support
 
 ### Blocked/Deferred
-- [ ] Docker image build - pulling base image (network slow)
+- [ ] Docker image build - 100% packet loss to Docker Hub
 - [ ] R2 bucket testing - needs R2 enabled on Cloudflare dashboard
 - [ ] Telegram integration - needs bot token from @BotFather
 
