@@ -53,14 +53,21 @@ aadf872 feat(operator): add agent reporting endpoints
 a62da2c docs: update TODO.md with session 002 progress
 ```
 
-## Ready for Deployment
+## Deployed This Session
 
-The following can be deployed now:
+The Operator Worker was successfully deployed:
+
+**Operator Worker:** https://clawdbox-operator.eduardogbg.workers.dev
+
+Tested endpoints:
+- GET `/` - Health check OK
+- GET `/health` - Detailed health OK
+- POST `/tasks` - Create task OK
+- GET `/tasks` - List tasks OK
+
+## Still Pending Deployment
 
 ```bash
-# Deploy Operator Worker
-cd packages/operator && wrangler deploy
-
 # Deploy Telegram Webhook Worker (needs TELEGRAM_BOT_TOKEN secret)
 cd packages/telegram-webhook && wrangler deploy --env staging
 ```
