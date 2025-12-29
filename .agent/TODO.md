@@ -1,7 +1,7 @@
 # Clawdbox Project TODO
 
 ## Session 8 Status
-- All 28 tests passing
+- All 33 tests passing (5 new E2E tests added)
 - TypeCheck passes for all packages
 - Docker Hub unreachable (100% packet loss to registry-1.docker.io)
 - No git remote configured
@@ -105,13 +105,20 @@ packages/
  ✓ test/operator.test.ts (2 tests)
  ✓ test/r2-bucket.test.ts (2 tests | 1 skipped)
  ✓ test/container.test.ts (3 tests)
- ✓ test/operator-e2e.test.ts (18 tests)
+ ✓ test/operator-e2e.test.ts (23 tests)  <- 5 new tests added
  ✓ test/worker.test.ts (2 tests)
  ✓ test/secrets-store.test.ts (2 tests)
 
  Test Files  6 passed (6)
-      Tests  28 passed | 1 skipped (29)
+      Tests  33 passed | 1 skipped (34)
 ```
+
+### New Tests Added This Session
+- `Operator Permission Queries > should create task and session for permission query test`
+- `Operator Permission Queries > should get empty permissions list for new task`
+- `Operator Permission Queries > should include pending permissions in query`
+- `Operator Spawn Agent > should fail spawn without AGENT_WORKER_URL configured`
+- `Operator Spawn Agent > should fail spawn without repoUrl`
 
 ## Alchemy-Effect Fork Details
 Location: `forks/alchemy-effect/alchemy-effect/`
