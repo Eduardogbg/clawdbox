@@ -13,9 +13,12 @@
 - [x] Integrated Claude Agent SDK in agent-container package
 - [x] Added agent reporting endpoints to Operator DO (/session, /complete, /error)
 
-### Ready for Deployment
-- [ ] Deploy Operator Worker to Cloudflare: `cd packages/operator && wrangler deploy`
-- [ ] Deploy Telegram Webhook Worker: `cd packages/telegram-webhook && wrangler deploy`
+### Deployed This Session
+- [x] Operator Worker deployed to https://clawdbox-operator.eduardogbg.workers.dev
+- [x] Tested health endpoint, task creation, task listing
+
+### Still Pending
+- [ ] Deploy Telegram Webhook Worker (needs TELEGRAM_BOT_TOKEN)
 - [ ] Test container deployment locally with Docker
 
 ---
