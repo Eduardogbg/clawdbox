@@ -1,20 +1,25 @@
 # Clawdbox TODO
 
-## Current Session: Ralph Session 011
+## Current Session: Ralph Session 014
 
-### Completed This Session
-- [x] Verified IAC tests still passing (33 tests)
-- [x] Verified all typechecks pass across all packages
-- [x] Attempted Docker build - blocked by registry connectivity
-- [x] Confirmed network ping works but Docker buildkit metadata fetch times out
-- [x] Pruned Docker buildx cache (18GB reclaimed)
-- [x] Documented blocking issues
-- [x] Added agent-worker unit tests (28 tests)
-  - AgentContainerDO tests (18 tests) - state management, lifecycle, HTTP handlers
-  - Worker routing tests (10 tests) - path routing, DO forwarding, health check
-- [x] Added telegram-webhook worker tests (12 tests)
-  - Health/webhook/setup endpoint tests
-  - Webhook secret validation tests
+### Completed Session 014
+- [x] Updated @cloudflare/containers to 0.0.31 (breaking API changes)
+- [x] Refactored agent-container-do.ts for new Container API
+- [x] Added pnpm-workspace.yaml for proper pnpm workspace support
+- [x] Added root tsconfig.json with project references
+- [x] Updated .gitignore to exclude pnpm-lock.yaml files
+- [x] Excluded repro-sdk-bug from pnpm workspace
+- [x] Fixed telegram-webhook wrangler.toml configuration
+- [x] All 156 tests passing
+- [x] All typechecks pass
+
+### Previous Sessions (011-013)
+- Added agent-worker unit tests (28 tests)
+- Added telegram-webhook worker tests (12 tests)
+- Fixed vitest version mismatch for @effect/vitest
+- Added comprehensive E2E tests for Operator (23 tests)
+- Deployed Operator Worker to Cloudflare
+- Created architecture documentation
 
 ### Blocked/Deferred
 - [ ] Docker image build - Docker buildkit cannot fetch metadata from docker.io
@@ -80,9 +85,9 @@
 ## Package Structure
 ```
 packages/
-├── iac/                    # Infrastructure as Code (33 tests)
+├── iac/                    # Infrastructure as Code (40 tests)
 ├── operator/               # Operator Worker + Durable Object
-├── agent-container/        # Claude Agent Container (23 tests)
+├── agent-container/        # Claude Agent Container (43 tests)
 ├── agent-worker/           # Worker with Container DO (28 tests)
 └── telegram-webhook/       # Telegram Bot Worker (45 tests)
 ```
@@ -90,31 +95,35 @@ packages/
 ## Deployed Resources
 - [x] Operator Worker: https://clawdbox-operator.eduardogbg.workers.dev
 
-## Test Results (Session 011)
+## Test Results (Session 014)
 ```
-=== IAC Package (33 tests) ===
+=== IAC Package (40 tests) ===
  ✓ test/operator.test.ts (2 tests)
  ✓ test/r2-bucket.test.ts (2 tests | 1 skipped)
  ✓ test/container.test.ts (3 tests)
  ✓ test/operator-e2e.test.ts (23 tests)
  ✓ test/worker.test.ts (2 tests)
  ✓ test/secrets-store.test.ts (2 tests)
+ ✓ test/d1.test.ts (2 tests)
+ ✓ test/kv.test.ts (2 tests)
+ ✓ test/queue.test.ts (2 tests | 1 skipped)
 
 === Telegram Package (45 tests) ===
  ✓ test/handler.test.ts (10 tests)
  ✓ test/operator-client.test.ts (11 tests)
  ✓ test/telegram.test.ts (12 tests)
- ✓ test/worker.test.ts (12 tests) - NEW
+ ✓ test/worker.test.ts (12 tests)
 
-=== Agent Container Package (23 tests) ===
+=== Agent Container Package (43 tests) ===
  ✓ test/config.test.ts (9 tests)
  ✓ test/permission.test.ts (14 tests)
+ ✓ test/repo.test.ts (20 tests)
 
 === Agent Worker Package (28 tests) ===
  ✓ test/agent-container-do.test.ts (18 tests)
  ✓ test/worker.test.ts (10 tests)
 
- Total: 129 tests passed | 1 skipped (130)
+ Total: 154 tests passed | 2 skipped (156)
 ```
 
 ## Known Issues
