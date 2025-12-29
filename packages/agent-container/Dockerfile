@@ -24,8 +24,8 @@ RUN mkdir -p /workspace /agent
 
 # Set up agent runtime
 WORKDIR /agent
-COPY package.json bun.lockb ./
-RUN bun install --frozen-lockfile
+COPY package.json ./
+RUN bun install
 
 # Copy agent source
 COPY src/ ./src/

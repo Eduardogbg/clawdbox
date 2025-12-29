@@ -6,7 +6,7 @@
   "description": "Claude Agent SDK container for Cloudflare Containers",
   "scripts": {
     "dev": "bun run --watch src/entrypoint.ts",
-    "build": "bun build src/entrypoint.ts --outdir dist",
+    "build": "bun build src/entrypoint.ts --target bun --outdir dist",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {

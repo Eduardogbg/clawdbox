@@ -1,25 +1,16 @@
 # Clawdbox TODO
 
-## Current Session: Ralph Session 002
+## Current Session: Ralph Session 003
 
 ### Completed This Session
-- [x] Verified alchemy-effect fork integration
-- [x] All typechecks pass (iac, operator, agent-container, telegram-webhook)
-- [x] IaC integration tests pass (Worker, SecretsStore - 10 pass, 1 skip for R2)
-- [x] Container resource already exists in alchemy-effect fork (binding-only)
-- [x] Container binding provider integrated into live.ts
-- [x] Created container test fixtures (Dockerfile, worker)
-- [x] Added GitHub Actions deployment workflow (deploy.yml)
-- [x] Integrated Claude Agent SDK in agent-container package
-- [x] Added agent reporting endpoints to Operator DO (/session, /complete, /error)
+- [x] Verified all IaC integration tests pass (10 pass, 1 skip for R2)
+- [x] Fixed agent-container build script (added --target bun)
+- [x] Started Docker Desktop
+- [x] Created container build/push CI workflow (.github/workflows/container.yml)
+- [x] Updated Dockerfile to not require lockfile
 
-### Deployed This Session
-- [x] Operator Worker deployed to https://clawdbox-operator.eduardogbg.workers.dev
-- [x] Tested health endpoint, task creation, task listing
-
-### Still Pending
-- [ ] Deploy Telegram Webhook Worker (needs TELEGRAM_BOT_TOKEN)
-- [ ] Test container deployment locally with Docker
+### In Progress
+- [ ] Docker build of agent-container (network slow, image pull taking time)
 
 ---
 
@@ -49,11 +40,12 @@
 - [ ] Requires TELEGRAM_BOT_TOKEN (create via @BotFather)
 - [ ] Deploy and configure webhook URL
 
-## Phase 4: Agent Runtime - READY FOR TESTING
+## Phase 4: Agent Runtime - IN PROGRESS
 - [x] Dockerfile for agent container
 - [x] Agent entrypoint using Claude Agent SDK
 - [x] Permission hook for tool use approval
-- [x] Cloudflare Containers now in public beta (June 2025)
+- [x] Container build CI workflow
+- [ ] Build and test Docker image locally
 - [ ] Wire up container spawning from Operator
 - [ ] Test actual container deployment with Docker
 
@@ -62,17 +54,14 @@
 - [ ] R2 repo snapshot/restore
 - [ ] GitHub integration
 
-## DevOps
-- [x] GitHub Actions CI/CD for typecheck and tests
-- [x] Add deployment workflow for Workers (deploy.yml)
-- [ ] Add container build/push workflow
+## CI/CD
+- [x] GitHub Actions CI for typecheck and tests (ci.yml)
+- [x] Deployment workflow for Workers (deploy.yml)
+- [x] Container build/push workflow (container.yml)
+- [ ] Add Cloudflare Containers deployment workflow
 
-## Next Steps
-1. Enable R2 on Cloudflare dashboard
-2. Create Telegram bot via @BotFather
-3. Deploy Operator Worker to Cloudflare
-4. Deploy Telegram Webhook Worker
-5. Test container deployment with Docker locally
+## Deployed Resources
+- [x] Operator Worker: https://clawdbox-operator.eduardogbg.workers.dev
 
 ## Known Issues
 - Cloudflare SDK bug: SecretsStore.create() sends array but API expects object
@@ -80,3 +69,10 @@
   - Local fork has fix: forks/cloudflare-typescript
 - R2 not enabled on account (error 10042)
 - Container testing requires Docker running locally + wrangler for deployment
+
+## Next Steps
+1. Enable R2 on Cloudflare dashboard
+2. Create Telegram bot via @BotFather
+3. Build and test Docker container locally
+4. Deploy container to Cloudflare
+5. Complete end-to-end integration test
