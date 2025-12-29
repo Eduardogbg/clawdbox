@@ -7,15 +7,43 @@
 - [x] Create integration tests for Cloudflare resources
 - [x] Test Secrets Store deployment via IaC (PASSED!)
 - [x] Test Worker deployment via IaC (PASSED!)
+- [x] Create packages/agent-container structure (Dockerfile, entrypoint, permission hooks)
+- [x] Create packages/telegram-webhook (Telegram Bot API, handler, wrangler config)
 
 ## In Progress
-- [ ] Set up Container resource for Claude Agent SDK
+- [ ] Set up CI/CD for IaC tests
 
 ## Pending
 - [ ] Test R2 bucket deployment via IaC (requires R2 enabled in CF dashboard)
-- [ ] Create Worker with basic handler for Telegram webhook
-- [ ] Automate IaC tests with CI/CD
+- [ ] Create Operator Durable Object for task coordination
 - [ ] Telegram Bot integration (API key needed)
+- [ ] Container deployment testing (requires Docker + beta access)
+
+## Package Structure
+
+```
+packages/
+├── iac/                    # Infrastructure as Code
+│   ├── src/alchemy.run.ts  # Main IaC entrypoint
+│   └── test/               # Integration tests
+│       ├── secrets-store.test.ts (PASS)
+│       ├── worker.test.ts (PASS)
+│       └── r2-bucket.test.ts (NEEDS R2 ENABLED)
+├── agent-container/        # Claude Agent SDK Container
+│   ├── Dockerfile          # Bun + Node.js + claude-code
+│   └── src/
+│       ├── entrypoint.ts   # Main entry point
+│       ├── config.ts       # Schema for agent config
+│       ├── permission.ts   # Permission hook for Telegram approval
+│       └── repo.ts         # Repository cloning/pushing
+└── telegram-webhook/       # Telegram Bot Worker
+    ├── wrangler.toml       # Cloudflare Worker config
+    └── src/
+        ├── index.ts        # Worker handler
+        ├── handler.ts      # Update processing
+        ├── telegram.ts     # Telegram API client
+        └── types.ts        # Telegram Bot API types
+```
 
 ## Notes
 
@@ -27,6 +55,7 @@
 ### Environment Variables Required
 - `CLOUDFLARE_API_TOKEN` - API token with account permissions
 - `CLOUDFLARE_ACCOUNT_ID` - 3a16620c57b98731f762586aeed4f25c
+- `TELEGRAM_BOT_TOKEN` - (not yet available)
 
 ### Cloudflare Account Status
 - Account ID: 3a16620c57b98731f762586aeed4f25c
@@ -56,7 +85,7 @@ Durable Objects in alchemy-effect are also "virtual resources":
 - DO namespace is created when Worker is deployed
 
 ## Next Steps
-1. Create a simple Worker with embedded Durable Object for state management
-2. Document Container setup requirements for Claude Agent SDK
-3. Enable R2 via Cloudflare dashboard and rerun test
-4. Create Telegram webhook handler structure (deferred, no API key)
+1. Enable R2 via Cloudflare dashboard and rerun test
+2. Create Operator Durable Object for task/session management
+3. Get Telegram Bot token and test webhook integration
+4. Set up GitHub Actions for CI/CD
