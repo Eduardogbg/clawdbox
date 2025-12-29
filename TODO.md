@@ -3,11 +3,14 @@
 ## Current Session: Ralph Session 010
 
 ### Completed This Session
-- [x] Verified all tests passing (33 IAC + 10 Telegram = 43 total)
+- [x] Verified all tests passing (33 IAC + 10 Telegram + 23 Agent = 66 total)
 - [x] Verified all typechecks pass
 - [x] Added Telegram handler unit tests (10 tests)
 - [x] Updated telegram-webhook package.json with vitest dependencies
 - [x] Created vitest.config.ts for telegram-webhook package
+- [x] Added agent-container unit tests (23 tests)
+  - Config schema validation tests (9 tests)
+  - Permission hook tests (14 tests)
 - [x] Reviewed and verified all component code quality
 
 ### Blocked/Deferred
@@ -72,7 +75,7 @@
 packages/
 ├── iac/                    # Infrastructure as Code (33 tests)
 ├── operator/               # Operator Worker + Durable Object
-├── agent-container/        # Docker container code for Claude agents
+├── agent-container/        # Claude Agent Container (23 tests)
 ├── agent-worker/           # Worker with Container DO
 └── telegram-webhook/       # Telegram Bot Worker (10 tests)
 ```
@@ -97,7 +100,16 @@ packages/
    - Permission callback handling (approve/deny)
    - Non-command message handling
 
- Total: 43 tests passed | 1 skipped (44)
+=== Agent Container Package (23 tests) ===
+ ✓ test/config.test.ts (9 tests)
+   - AgentConfig schema validation
+   - AgentEnv schema validation
+ ✓ test/permission.test.ts (14 tests)
+   - Auto-allow rules for safe tools
+   - Permission-required tools
+   - Operator communication
+
+ Total: 66 tests passed | 1 skipped (67)
 ```
 
 ## Known Issues

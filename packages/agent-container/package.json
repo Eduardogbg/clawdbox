@@ -7,14 +7,18 @@
   "scripts": {
     "dev": "bun run --watch src/entrypoint.ts",
     "build": "bun build src/entrypoint.ts --target bun --outdir dist",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest"
   },
   "dependencies": {
     "@anthropic-ai/claude-agent-sdk": "^0.1.76",
     "effect": "^3.19.3"
   },
   "devDependencies": {
+    "@effect/vitest": "^0.27.0",
     "@types/bun": "latest",
-    "typescript": "^5.9.3"
+    "typescript": "^5.9.3",
+    "vitest": "^3.2.0"
   }
 }
