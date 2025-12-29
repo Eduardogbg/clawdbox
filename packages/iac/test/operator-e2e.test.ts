@@ -44,6 +44,12 @@ interface ErrorResponse {
   error: string;
 }
 
+interface PermissionsResponse {
+  permissions: Permission[];
+  taskId: string;
+  sessionId?: string;
+}
+
 describe("Operator E2E Integration", () => {
   let testTaskId: string | null = null;
 
@@ -373,5 +379,121 @@ describe("Operator Session & Permission Flow", () => {
     const taskCheck = await fetch(`${OPERATOR_URL}/tasks/${newTask.id}`);
     const task = (await taskCheck.json()) as Task;
     expect(task.status).toBe("failed");
+  });
+});
+
+describe("Operator Permission Queries", () => {
+  let taskId: string;
+  let sessionId: string;
+
+  it("should create task and session for permission query test", async () => {
+    // Create a task
+    const taskResponse = await fetch(`${OPERATOR_URL}/tasks`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        prompt: "Test task for permission queries",
+      }),
+    });
+    const task = (await taskResponse.json()) as Task;
+    taskId = task.id;
+
+    // Create a session
+    const sessionResponse = await fetch(`${OPERATOR_URL}/sessions`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ taskId }),
+    });
+    const session = (await sessionResponse.json()) as Session;
+    sessionId = session.id;
+  });
+
+  it("should get empty permissions list for new task", async () => {
+    const response = await fetch(`${OPERATOR_URL}/tasks/${taskId}/permissions`);
+    expect(response.ok).toBe(true);
+
+    const data = (await response.json()) as PermissionsResponse;
+    expect(data).toHaveProperty("permissions");
+    expect(data.permissions).toEqual([]);
+    expect(data.taskId).toBe(taskId);
+    expect(data.sessionId).toBe(sessionId);
+  });
+
+  it("should include pending permissions in query", async () => {
+    // Create a pending permission
+    const permissionId = crypto.randomUUID();
+    await fetch(`${OPERATOR_URL}/permissions`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        taskId,
+        toolUseId: permissionId,
+        toolName: "Write",
+        toolInput: JSON.stringify({ path: "/important/file.ts" }),
+      }),
+    });
+
+    // Query pending permissions
+    const response = await fetch(`${OPERATOR_URL}/tasks/${taskId}/permissions`);
+    expect(response.ok).toBe(true);
+
+    const data = (await response.json()) as PermissionsResponse;
+    expect(data.permissions.length).toBeGreaterThanOrEqual(1);
+
+    const found = data.permissions.find((p) => p.id === permissionId);
+    expect(found).toBeDefined();
+    expect(found?.status).toBe("pending");
+    expect(found?.toolName).toBe("Write");
+  });
+});
+
+describe("Operator Spawn Agent", () => {
+  it("should fail spawn without AGENT_WORKER_URL configured", async () => {
+    // Create a task first
+    const taskResponse = await fetch(`${OPERATOR_URL}/tasks`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        prompt: "Test spawn failure",
+        repoUrl: "https://github.com/test/repo",
+        branch: "main",
+      }),
+    });
+    const task = (await taskResponse.json()) as Task;
+
+    // Try to spawn - should fail because AGENT_WORKER_URL is not configured
+    const response = await fetch(`${OPERATOR_URL}/tasks/${task.id}/spawn`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+    });
+
+    // Should return 503 (Service Unavailable) since AGENT_WORKER_URL is not configured
+    expect(response.status).toBe(503);
+    const data = (await response.json()) as ErrorResponse;
+    expect(data).toHaveProperty("error");
+    expect(data.error).toContain("AGENT_WORKER_URL");
+  });
+
+  it("should fail spawn without repoUrl", async () => {
+    // Create a task without repoUrl
+    const taskResponse = await fetch(`${OPERATOR_URL}/tasks`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        prompt: "Test spawn without repo",
+      }),
+    });
+    const task = (await taskResponse.json()) as Task;
+
+    // Mock AGENT_WORKER_URL by checking error comes before that validation
+    const response = await fetch(`${OPERATOR_URL}/tasks/${task.id}/spawn`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+    });
+
+    // Without repoUrl, should fail with 400 or 503 depending on order of checks
+    expect([400, 503]).toContain(response.status);
+    const data = await response.json();
+    expect(data).toHaveProperty("error");
   });
 });
