@@ -15,3 +15,6 @@ forks/*
 
 **/node_modules
 **/.env
+
+# lock files (use bun.lock at root)
+**/pnpm-lock.yaml
