@@ -28,3 +28,8 @@ new_sqlite_classes = ["OperatorDO"]
 # [[r2_buckets]]
 # binding = "STORAGE"
 # bucket_name = "clawdbox-storage"
+
+# Environment variables
+[vars]
+# Agent Worker URL - set this after deploying agent-worker
+# AGENT_WORKER_URL = "https://clawdbox-agent-worker.eduardogbg.workers.dev"

@@ -22,6 +22,8 @@ export const Task = Schema.Struct({
   telegramChatId: Schema.Number.pipe(Schema.optional),
   status: TaskStatus,
   prompt: Schema.String,
+  repoUrl: Schema.String.pipe(Schema.optional),
+  branch: Schema.String.pipe(Schema.optional),
   createdAt: Schema.Number,
   updatedAt: Schema.Number,
 });
@@ -57,8 +59,18 @@ export const CreateTaskRequest = Schema.Struct({
   prompt: Schema.String,
   telegramTopicId: Schema.Number.pipe(Schema.optional),
   telegramChatId: Schema.Number.pipe(Schema.optional),
+  repoUrl: Schema.String.pipe(Schema.optional),
+  branch: Schema.String.pipe(Schema.optional),
 });
 export type CreateTaskRequest = Schema.Schema.Type<typeof CreateTaskRequest>;
+
+// Spawn agent request
+export const SpawnAgentRequest = Schema.Struct({
+  taskId: Schema.String,
+  repoUrl: Schema.String,
+  branch: Schema.String.pipe(Schema.optional),
+});
+export type SpawnAgentRequest = Schema.Schema.Type<typeof SpawnAgentRequest>;
 
 export const RequestPermissionRequest = Schema.Struct({
   taskId: Schema.String,

@@ -32,10 +32,11 @@ function getOne<T>(cursor: { one(): T | null }): T | null {
  */
 export interface Env {
   OPERATOR: DurableObjectNamespace<OperatorDO>;
+  // Agent Worker URL for spawning containers
+  AGENT_WORKER_URL?: string;
   // Future bindings:
   // SECRETS: SecretsStore;
   // STORAGE: R2Bucket;
-  // AGENT_CONTAINER: DurableObjectNamespace;
 }
 
 /**
@@ -48,6 +49,8 @@ function rowToTask(row: Record<string, unknown>): Task {
     telegramChatId: row.telegram_chat_id as number | undefined,
     status: row.status as TaskStatus,
     prompt: row.prompt as string,
+    repoUrl: row.repo_url as string | undefined,
+    branch: row.branch as string | undefined,
     createdAt: row.created_at as number,
     updatedAt: row.updated_at as number,
   };
@@ -178,6 +181,17 @@ export class OperatorDO extends DurableObject<Env> {
         return this.handleReportError(request);
       }
 
+      // Spawn agent endpoint
+      if (url.pathname.match(/^\/tasks\/[^/]+\/spawn$/) && method === "POST") {
+        const id = url.pathname.split("/")[2];
+        return this.handleSpawnAgent(id, request);
+      }
+
+      // Container stopped callback
+      if (url.pathname === "/container-stopped" && method === "POST") {
+        return this.handleContainerStopped(request);
+      }
+
       return new Response(JSON.stringify({ error: "Not found" }), {
         status: 404,
         headers: { "Content-Type": "application/json" },
@@ -215,10 +229,12 @@ export class OperatorDO extends DurableObject<Env> {
    */
   private async handleCreateTask(request: Request): Promise<Response> {
     const body = await request.json();
-    const { prompt, telegramTopicId, telegramChatId } = body as {
+    const { prompt, telegramTopicId, telegramChatId, repoUrl, branch } = body as {
       prompt: string;
       telegramTopicId?: number;
       telegramChatId?: number;
+      repoUrl?: string;
+      branch?: string;
     };
 
     if (!prompt) {
@@ -234,6 +250,8 @@ export class OperatorDO extends DurableObject<Env> {
       telegramChatId,
       status: "pending",
       prompt,
+      repoUrl,
+      branch: branch ?? "main",
       createdAt: now(),
       updatedAt: now(),
     };
@@ -245,6 +263,8 @@ export class OperatorDO extends DurableObject<Env> {
       task.telegramChatId ?? null,
       task.status,
       task.prompt,
+      task.repoUrl ?? null,
+      task.branch ?? "main",
       task.createdAt,
       task.updatedAt
     );
@@ -637,6 +657,171 @@ export class OperatorDO extends DurableObject<Env> {
     console.error(`[Error][${taskId}]: ${error}`);
 
     return new Response(JSON.stringify({ received: true }), {
+      headers: { "Content-Type": "application/json" },
+    });
+  }
+
+  /**
+   * Spawn an agent container for a task
+   */
+  private async handleSpawnAgent(taskId: string, request: Request): Promise<Response> {
+    // Get the task
+    const taskRow = this.ctx.storage.sql.exec(SQL.GET_TASK, taskId).one();
+    if (!taskRow) {
+      return new Response(JSON.stringify({ error: "Task not found" }), {
+        status: 404,
+        headers: { "Content-Type": "application/json" },
+      });
+    }
+
+    const task = rowToTask(taskRow);
+
+    // Parse optional request body for repo override
+    let repoUrl = task.repoUrl;
+    let branch = task.branch ?? "main";
+
+    try {
+      const body = await request.json() as { repoUrl?: string; branch?: string };
+      if (body.repoUrl) repoUrl = body.repoUrl;
+      if (body.branch) branch = body.branch;
+    } catch {
+      // Body is optional
+    }
+
+    if (!repoUrl) {
+      return new Response(JSON.stringify({ error: "repoUrl is required (set in task or request)" }), {
+        status: 400,
+        headers: { "Content-Type": "application/json" },
+      });
+    }
+
+    // Check if AGENT_WORKER_URL is configured
+    const agentWorkerUrl = this.env.AGENT_WORKER_URL;
+    if (!agentWorkerUrl) {
+      return new Response(
+        JSON.stringify({
+          error: "AGENT_WORKER_URL not configured",
+          hint: "Set AGENT_WORKER_URL environment variable to the agent-worker URL",
+        }),
+        {
+          status: 503,
+          headers: { "Content-Type": "application/json" },
+        }
+      );
+    }
+
+    // Create a session for this task
+    const session: Session = {
+      id: generateId(),
+      taskId,
+      containerId: taskId, // Use task ID as container ID for simplicity
+      status: "starting",
+      createdAt: now(),
+      updatedAt: now(),
+    };
+
+    this.ctx.storage.sql.exec(
+      SQL.INSERT_SESSION,
+      session.id,
+      session.taskId,
+      session.containerId ?? null,
+      session.claudeSessionId ?? null,
+      session.status,
+      session.createdAt,
+      session.updatedAt
+    );
+
+    // Update task status to active
+    this.ctx.storage.sql.exec(SQL.UPDATE_TASK_STATUS, "active", now(), taskId);
+
+    // Build the operator callback URL
+    const operatorUrl = `https://clawdbox-operator.eduardogbg.workers.dev`;
+
+    // Agent configuration
+    const agentConfig = {
+      taskId,
+      repoUrl,
+      branch,
+      prompt: task.prompt,
+      operatorUrl,
+    };
+
+    try {
+      // Call the agent-worker to start the container
+      const startUrl = `${agentWorkerUrl}/agent/${taskId}/start`;
+      const response = await fetch(startUrl, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(agentConfig),
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`Failed to spawn container: ${response.status} - ${errorText}`);
+      }
+
+      const result = await response.json();
+
+      console.log(`[Spawn][${taskId}]: Agent spawned successfully`, result);
+
+      return new Response(
+        JSON.stringify({
+          status: "spawned",
+          taskId,
+          sessionId: session.id,
+          result,
+        }),
+        {
+          status: 201,
+          headers: { "Content-Type": "application/json" },
+        }
+      );
+    } catch (error) {
+      // Rollback on failure
+      this.ctx.storage.sql.exec(SQL.UPDATE_TASK_STATUS, "failed", now(), taskId);
+      this.ctx.storage.sql.exec(SQL.UPDATE_SESSION_STATUS, "stopped", now(), session.id);
+
+      console.error(`[Spawn][${taskId}]: Failed to spawn agent`, error);
+
+      return new Response(
+        JSON.stringify({
+          error: error instanceof Error ? error.message : "Failed to spawn agent",
+        }),
+        {
+          status: 500,
+          headers: { "Content-Type": "application/json" },
+        }
+      );
+    }
+  }
+
+  /**
+   * Handle container stopped callback from agent-worker
+   */
+  private async handleContainerStopped(request: Request): Promise<Response> {
+    const body = await request.json();
+    const { taskId, exitCode } = body as {
+      taskId: string;
+      exitCode: number;
+    };
+
+    if (!taskId) {
+      return new Response(JSON.stringify({ error: "taskId is required" }), {
+        status: 400,
+        headers: { "Content-Type": "application/json" },
+      });
+    }
+
+    console.log(`[Container][${taskId}]: Container stopped with exit code ${exitCode}`);
+
+    // Update task status based on exit code
+    const newStatus = exitCode === 0 ? "completed" : "failed";
+    this.ctx.storage.sql.exec(SQL.UPDATE_TASK_STATUS, newStatus, now(), taskId);
+
+    // Update session status to stopped
+    this.ctx.storage.sql.exec(SQL.UPDATE_SESSION_STATUS_BY_TASK, "stopped", now(), taskId);
+
+    return new Response(JSON.stringify({ received: true, status: newStatus }), {
       headers: { "Content-Type": "application/json" },
     });
   }

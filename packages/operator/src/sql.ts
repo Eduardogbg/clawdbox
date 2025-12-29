@@ -11,6 +11,8 @@ CREATE TABLE IF NOT EXISTS tasks (
   telegram_chat_id INTEGER,
   status TEXT NOT NULL CHECK(status IN ('pending', 'active', 'completed', 'failed')),
   prompt TEXT NOT NULL,
+  repo_url TEXT,
+  branch TEXT DEFAULT 'main',
   created_at INTEGER NOT NULL,
   updated_at INTEGER NOT NULL
 );
@@ -48,8 +50,8 @@ CREATE INDEX IF NOT EXISTS idx_permissions_status ON permissions(status);
 
 // Task queries
 export const INSERT_TASK = `
-INSERT INTO tasks (id, telegram_topic_id, telegram_chat_id, status, prompt, created_at, updated_at)
-VALUES (?, ?, ?, ?, ?, ?, ?)
+INSERT INTO tasks (id, telegram_topic_id, telegram_chat_id, status, prompt, repo_url, branch, created_at, updated_at)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
 `;
 
 export const UPDATE_TASK_STATUS = `
@@ -57,17 +59,17 @@ UPDATE tasks SET status = ?, updated_at = ? WHERE id = ?
 `;
 
 export const GET_TASK = `
-SELECT id, telegram_topic_id, telegram_chat_id, status, prompt, created_at, updated_at
+SELECT id, telegram_topic_id, telegram_chat_id, status, prompt, repo_url, branch, created_at, updated_at
 FROM tasks WHERE id = ?
 `;
 
 export const GET_TASKS_BY_STATUS = `
-SELECT id, telegram_topic_id, telegram_chat_id, status, prompt, created_at, updated_at
+SELECT id, telegram_topic_id, telegram_chat_id, status, prompt, repo_url, branch, created_at, updated_at
 FROM tasks WHERE status = ? ORDER BY created_at DESC
 `;
 
 export const GET_ALL_TASKS = `
-SELECT id, telegram_topic_id, telegram_chat_id, status, prompt, created_at, updated_at
+SELECT id, telegram_topic_id, telegram_chat_id, status, prompt, repo_url, branch, created_at, updated_at
 FROM tasks ORDER BY created_at DESC LIMIT ?
 `;
 
