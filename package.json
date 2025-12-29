@@ -7,8 +7,11 @@
   ],
   "scripts": {
     "typecheck": "for pkg in agent-container agent-worker iac operator telegram-webhook; do echo \"=== $pkg ===\" && (cd packages/$pkg && bunx tsc --noEmit) || exit 1; done",
-    "test": "cd packages/iac && bunx vitest run",
-    "test:iac": "cd packages/iac && bunx vitest run"
+    "test": "bun run test:all",
+    "test:all": "bun run test:iac && bun run test:telegram && bun run test:agent",
+    "test:iac": "cd packages/iac && bunx vitest run",
+    "test:telegram": "cd packages/telegram-webhook && bunx vitest run",
+    "test:agent": "cd packages/agent-container && bunx vitest run"
   },
   "devDependencies": {
     "pathe": "^2.0.3",
