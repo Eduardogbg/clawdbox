@@ -174,4 +174,5 @@ All of these require user action or environmental changes rather than code chang
 ## Commits This Session
 
 1. `5866f3b` - docs: add session 011 handoff and update TODOs
-2. (pending) - test(agent-worker): add unit tests for Container DO and Worker
+2. `17f9c04` - test(agent-worker): add unit tests for Container DO and Worker
+3. `22f5b62` - ci: add agent-worker tests to CI workflow
