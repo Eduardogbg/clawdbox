@@ -5,6 +5,8 @@
   "type": "module",
   "scripts": {
     "alchemy": "bun run src/alchemy.run.ts",
+    "deploy": "bun run src/deploy.ts",
+    "destroy": "bun run src/deploy.ts --destroy",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest"

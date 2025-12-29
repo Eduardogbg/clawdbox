@@ -200,3 +200,4 @@ Likely requires Docker Desktop restart or network reconfiguration.
 ## Commits This Session
 1. `a04b442` - test(iac): add D1, KV, and Queue integration tests
 2. `d6c3f70` - test(agent-container): add repo logic unit tests
+3. `4977d72` - feat(iac): add KV and D1 resources to stack
