@@ -6,6 +6,8 @@
 - Docker Hub unreachable (100% packet loss to registry-1.docker.io)
 - No git remote configured
 - ghcr.io reachable but bun images not available there
+- Added /cancel command to Telegram webhook
+- Created alternative Dockerfile.alpine for building without Docker Hub
 
 ## Completed
 - [x] Fix alchemy-effect dependency to use local fork (tgz tarball)
@@ -21,8 +23,10 @@
 - [x] Add synchronous permission endpoint with long-polling for agent
 - [x] Add E2E tests for Operator (18 tests covering sessions, permissions, task lifecycle)
 - [x] Add /status command to Telegram webhook
+- [x] Add /cancel command to Telegram webhook
 - [x] Create architecture documentation (docs/ARCHITECTURE.md)
 - [x] Deploy Operator Worker to Cloudflare
+- [x] Create Dockerfile.alpine alternative for network issues
 
 ## In Progress
 - [ ] Container image build (blocked: Docker Hub unreachable)
