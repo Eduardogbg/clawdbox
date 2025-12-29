@@ -11,7 +11,7 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@cloudflare/containers": "^0.0.2",
+    "@cloudflare/containers": "^0.0.31",
     "effect": "^3.19.3"
   },
   "devDependencies": {
