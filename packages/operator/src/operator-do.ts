@@ -11,6 +11,22 @@ import { pipe } from "effect/Function";
 import type { Task, Session, Permission, TaskStatus, SessionStatus } from "./types.js";
 import * as SQL from "./sql.js";
 
+/**
+ * Check if a column exists in a table
+ */
+function columnExists(
+  sql: DurableObjectStorage["sql"],
+  tableName: string,
+  columnName: string
+): boolean {
+  try {
+    const rows = sql.exec(`PRAGMA table_info(${tableName})`).toArray();
+    return rows.some((row) => row.name === columnName);
+  } catch {
+    return false;
+  }
+}
+
 // Generate unique IDs
 function generateId(): string {
   return crypto.randomUUID();
@@ -94,13 +110,26 @@ export class OperatorDO extends DurableObject<Env> {
   private initialized = false;
 
   /**
-   * Initialize the database schema
+   * Initialize the database schema and run migrations
    */
   private async ensureInitialized(): Promise<void> {
     if (this.initialized) return;
 
     try {
+      // Create tables if they don't exist
       this.ctx.storage.sql.exec(SQL.INIT_SCHEMA);
+
+      // Run migrations for new columns
+      // Migration V1: Add repo_url and branch columns to tasks table
+      if (!columnExists(this.ctx.storage.sql, "tasks", "repo_url")) {
+        console.log("Running migration: ADD_REPO_URL_COLUMN");
+        this.ctx.storage.sql.exec(SQL.ADD_REPO_URL_COLUMN);
+      }
+      if (!columnExists(this.ctx.storage.sql, "tasks", "branch")) {
+        console.log("Running migration: ADD_BRANCH_COLUMN");
+        this.ctx.storage.sql.exec(SQL.ADD_BRANCH_COLUMN);
+      }
+
       this.initialized = true;
     } catch (error) {
       console.error("Failed to initialize schema:", error);

@@ -2,17 +2,15 @@
  * SQL schema and queries for Operator Durable Object
  */
 
-// Schema initialization
+// Schema initialization - creates tables if they don't exist
 export const INIT_SCHEMA = `
--- Tasks table
+-- Tasks table (base schema)
 CREATE TABLE IF NOT EXISTS tasks (
   id TEXT PRIMARY KEY,
   telegram_topic_id INTEGER,
   telegram_chat_id INTEGER,
   status TEXT NOT NULL CHECK(status IN ('pending', 'active', 'completed', 'failed')),
   prompt TEXT NOT NULL,
-  repo_url TEXT,
-  branch TEXT DEFAULT 'main',
   created_at INTEGER NOT NULL,
   updated_at INTEGER NOT NULL
 );
@@ -47,6 +45,17 @@ CREATE INDEX IF NOT EXISTS idx_sessions_status ON sessions(status);
 CREATE INDEX IF NOT EXISTS idx_permissions_session_id ON permissions(session_id);
 CREATE INDEX IF NOT EXISTS idx_permissions_status ON permissions(status);
 `;
+
+// Migration: Add repo_url and branch columns to tasks table
+export const MIGRATE_TASKS_V1 = `
+-- Check if columns exist before adding them
+-- SQLite doesn't support IF NOT EXISTS for ALTER TABLE, so we catch errors
+PRAGMA table_info(tasks);
+`;
+
+// Separate migration statements (must be run individually)
+export const ADD_REPO_URL_COLUMN = `ALTER TABLE tasks ADD COLUMN repo_url TEXT`;
+export const ADD_BRANCH_COLUMN = `ALTER TABLE tasks ADD COLUMN branch TEXT DEFAULT 'main'`;
 
 // Task queries
 export const INSERT_TASK = `
