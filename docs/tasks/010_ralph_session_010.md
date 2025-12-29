@@ -6,6 +6,8 @@
 
 This session focused on adding comprehensive test coverage for the Telegram webhook handler and the agent-container package. Both packages now have extensive unit tests that can run without external dependencies.
 
+Additional improvements include updating the CI workflow to run all unit tests and adding convenience test scripts to the root package.json.
+
 ## Key Accomplishments
 
 ### 1. Telegram Webhook Tests (33 tests)
@@ -70,6 +72,9 @@ Total: 89 tests passed | 1 skipped (90)
 3. `7a3a2b8` - docs: add session 010 handoff documentation
 4. `a918222` - test(telegram): add unit tests for Operator client
 5. `ae0e371` - test(telegram): add unit tests for Telegram API client
+6. `6e5d929` - docs: update session 010 with all tests
+7. `3e4731d` - ci: add all unit tests to CI workflow
+8. `d7891f1` - chore: add test scripts to root package.json
 
 ## Ongoing Blockers
 
