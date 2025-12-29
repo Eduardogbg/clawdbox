@@ -14,7 +14,21 @@
       "Bash(curl:*)",
       "WebFetch",
       "Bash(readlink:*)",
-      "Bash(grep:*)"
+      "Bash(grep:*)",
+      "Skill(ralph-wiggum:help)",
+      "Bash(git submodule:*)",
+      "Bash(claude:*)",
+      "Bash(git show:*)",
+      "Skill(ralph-wiggum:ralph-loop)",
+      "Bash(/Users/eduardo/.claude/plugins/cache/claude-plugins-official/ralph-wiggum/6d3752c000e2/scripts/setup-ralph-loop.sh)",
+      "Bash(/Users/eduardo/.claude/plugins/cache/claude-plugins-official/ralph-wiggum/6d3752c000e2/scripts/setup-ralph-loop.sh:*)",
+      "Bash(tree:*)",
+      "Bash(uv venv:*)",
+      "Bash(source .venv/bin/activate)",
+      "Bash(uv pip install:*)",
+      "Bash(ralph --help:*)",
+      "Bash(source /Users/eduardo/workspace/clawdbox/forks/agents/.venv/bin/activate)",
+      "Bash(uv pip uninstall:*)"
     ]
   }
 }
