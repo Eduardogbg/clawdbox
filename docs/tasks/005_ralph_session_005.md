@@ -9,6 +9,10 @@ This session focused on completing the permission flow and improving test covera
 ## Commits This Session
 
 ```
+642fe93 docs: update TODO with session 005 progress
+e6872b8 feat(operator): add endpoint to get pending permissions for task
+37b8eed feat(telegram): implement /status command with task queries
+8931b53 docs: add architecture documentation and session 005 handoff
 1bac8ad feat(operator): add synchronous permission endpoint with long-polling
 ```
 
@@ -46,6 +50,16 @@ This session focused on completing the permission flow and improving test covera
 - Fixed root package.json typecheck command
 - Fixed test command to properly scope to packages/iac
 
+### 6. Telegram /status Command
+- Implemented /status command that queries Operator for tasks
+- Shows active, pending, and recent (completed/failed) tasks
+- Properly formats output with HTML escaping
+
+### 7. Pending Permissions Endpoint
+- Added GET /tasks/:id/permissions endpoint
+- Returns pending permissions for a task
+- Added getTaskPermissions method to operator client
+
 ## Test Results
 
 ```
@@ -63,8 +77,8 @@ This session focused on completing the permission flow and improving test covera
 ## Deployed Resources
 
 - **Operator Worker**: https://clawdbox-operator.eduardogbg.workers.dev
-  - Version: 2bdabcec-7253-41d3-8c8f-2589e0ce5cf6
-  - Has new `/permission` endpoint
+  - Version: 6474d407-23cc-4c7f-ab0d-ed22fc32cce5
+  - Has new `/permission` and `/tasks/:id/permissions` endpoints
 
 ## Blocked Items
 
@@ -89,11 +103,13 @@ This session focused on completing the permission flow and improving test covera
 ## Files Changed This Session
 
 1. `package.json` - Fixed typecheck and test scripts
-2. `packages/operator/src/operator-do.ts` - Added `/permission` endpoint
+2. `packages/operator/src/operator-do.ts` - Added `/permission` and `/tasks/:id/permissions` endpoints
 3. `packages/agent-container/src/permission.ts` - Fixed endpoint URL
 4. `packages/iac/test/operator-e2e.test.ts` - Added permission/session tests
-5. `TODO.md` - Updated with session 005 progress
-6. `docs/ARCHITECTURE.md` - New architecture documentation
+5. `packages/telegram-webhook/src/handler.ts` - Added /status command implementation
+6. `packages/telegram-webhook/src/operator-client.ts` - Added getTaskPermissions method
+7. `TODO.md` - Updated with session 005 progress
+8. `docs/ARCHITECTURE.md` - New architecture documentation
 
 ## New Endpoints
 
@@ -122,6 +138,27 @@ Synchronous permission request with long-polling.
 {
   "approved": false,
   "reason": "Too dangerous"
+}
+```
+
+### GET /tasks/:id/permissions (Operator)
+Get pending permissions for a task.
+
+**Response:**
+```json
+{
+  "permissions": [
+    {
+      "id": "uuid",
+      "sessionId": "uuid",
+      "toolName": "Bash",
+      "toolInput": "{}",
+      "status": "pending",
+      "createdAt": 1234567890
+    }
+  ],
+  "taskId": "uuid",
+  "sessionId": "uuid"
 }
 ```
 
