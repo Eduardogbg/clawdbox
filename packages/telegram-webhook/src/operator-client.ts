@@ -231,6 +231,32 @@ export const createOperatorClient = (operatorUrl: string) => ({
       );
       return { permissions, taskId: data.taskId, sessionId: data.sessionId };
     }),
+
+  /**
+   * Update task status
+   */
+  updateTaskStatus: (taskId: string, status: TaskResponse["status"]) =>
+    Effect.gen(function* () {
+      const response = yield* Effect.tryPromise({
+        try: () =>
+          fetch(`${operatorUrl}/tasks/${taskId}/status`, {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ status }),
+          }),
+        catch: (e) => new Error(`Failed to update task status: ${e}`),
+      });
+
+      if (!response.ok) {
+        const text = yield* Effect.tryPromise(() => response.text());
+        return yield* Effect.fail(
+          new Error(`Failed to update task status: ${response.status} ${text}`),
+        );
+      }
+
+      const json = yield* Effect.tryPromise(() => response.json());
+      return yield* Schema.decodeUnknown(TaskResponse)(json);
+    }),
 });
 
 export type OperatorClient = ReturnType<typeof createOperatorClient>;

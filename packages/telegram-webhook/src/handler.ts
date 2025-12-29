@@ -351,22 +351,10 @@ const cancelTask = (chatId: number, taskId: string, ctx: HandlerContext) =>
 
     yield* Effect.logInfo(`Cancelling task ${taskId}`);
 
-    // Update task status to failed
+    // Update task status to failed via operator client
     const result = yield* pipe(
-      Effect.tryPromise({
-        try: () =>
-          fetch(`${ctx.operatorUrl}/tasks/${taskId}/status`, {
-            method: "PATCH",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ status: "failed" }),
-          }),
-        catch: (e) => new Error(`Failed to cancel task: ${e}`),
-      }),
-      Effect.flatMap((response) =>
-        response.ok
-          ? Effect.succeed("cancelled" as const)
-          : Effect.fail(new Error(`Failed: ${response.status}`)),
-      ),
+      operator.updateTaskStatus(taskId, "failed"),
+      Effect.map(() => "cancelled" as const),
       Effect.tapError((e) => Effect.logError(`Failed to cancel task: ${e}`)),
       Effect.catchAll(() => Effect.succeed("error" as const)),
     );
