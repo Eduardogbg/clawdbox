@@ -17,7 +17,8 @@
     { "path": "./packages/operator" },
     { "path": "./packages/telegram-webhook" },
     { "path": "./packages/agent-container" },
-    { "path": "./packages/agent-worker" }
+    { "path": "./packages/agent-worker" },
+    { "path": "./packages/takopi-worker" }
   ],
   "files": []
 }

@@ -10,6 +10,9 @@ const Secrets = Cloudflare.SecretsStore.Store("Secrets", {
   secrets: {
     // Placeholder secrets - replace with actual values or env vars
     TELEGRAM_BOT_TOKEN: process.env.TELEGRAM_BOT_TOKEN ?? "placeholder",
+    TAKOPI_BOT_TOKEN: process.env.TAKOPI_BOT_TOKEN ?? "placeholder",
+    TAKOPI_CHAT_ID: process.env.TAKOPI_CHAT_ID ?? "0",
+    OPENAI_API_KEY: process.env.OPENAI_API_KEY ?? "placeholder",
     ANTHROPIC_API_KEY: process.env.ANTHROPIC_API_KEY ?? "placeholder",
     GITHUB_PAT: process.env.GITHUB_PAT ?? "placeholder",
   },

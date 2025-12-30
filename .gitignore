@@ -6,6 +6,7 @@ effect
 # forks (except submodules)
 forks/*
 !forks/alchemy-effect
+!forks/takopi
 
 # secret
 telegram.json

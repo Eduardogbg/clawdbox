@@ -1,5 +1,15 @@
 # Clawdbox TODO
 
+## Current Session: 004 Agent Container (Takopi)
+
+### In Progress
+- [x] Converted `forks/takopi` to a git submodule
+- [x] Drafted takopi + Cloudflare Containers design spec
+- [x] Add takopi container image + entrypoint (new package)
+- [x] Add takopi worker + container DO for start/stop/status
+- [ ] Extend IaC stack to deploy takopi worker + container binding (container config still wrangler-only)
+- [ ] Add takopi E2E (deploy, start, send Telegram message, stop)
+
 ## Current Session: Post-Ralph Cleanup
 
 ### Completed (Post-Ralph)
@@ -167,6 +177,8 @@ packages/
 2. Enable R2 on Cloudflare dashboard
 3. Create GitHub repo and push all code
 4. Deploy agent-worker to Cloudflare Containers
+5. Decide on Bun vs Vitest for IaC tests (Bun works now without alchemy-effect/test)
+6. Expand E2E to include agent-worker/container once Docker + R2 are ready
 
 ## Environment Variables Required
 
@@ -175,6 +187,9 @@ CLOUDFLARE_API_TOKEN=xxx      # API token with account permissions
 CLOUDFLARE_ACCOUNT_ID=3a16620c57b98731f762586aeed4f25c
 TELEGRAM_BOT_TOKEN=xxx        # From @BotFather
 TELEGRAM_CHAT_ID=xxx          # From telegram.json (forum/chat ID)
+TAKOPI_BOT_TOKEN=xxx          # Takopi bot token
+TAKOPI_CHAT_ID=xxx            # Takopi chat ID
+OPENAI_API_KEY=xxx            # For Codex CLI
 ANTHROPIC_API_KEY=xxx         # For agent containers
 GITHUB_PAT=xxx                # For private repo access
 ```

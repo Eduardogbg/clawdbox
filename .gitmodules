@@ -2,3 +2,6 @@
 	path = forks/alchemy-effect
 	url = https://github.com/Eduardogbg/alchemy-effect
 	branch = feat/cloudflare-resources
+[submodule "forks/takopi"]
+	path = forks/takopi
+	url = https://github.com/banteg/takopi

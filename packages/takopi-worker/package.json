@@ -1,0 +1,23 @@
+{
+  "name": "@clawdbox/takopi-worker",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "description": "Worker with Container DO for running takopi",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "typecheck": "tsc --noEmit",
+    "test": "bun test"
+  },
+  "dependencies": {
+    "@cloudflare/containers": "^0.0.31",
+    "effect": "^3.19.3"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4.20250805.0",
+    "@types/bun": "latest",
+    "typescript": "^5.9.3",
+    "wrangler": "^4.17.2"
+  }
+}
