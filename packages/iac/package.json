@@ -12,7 +12,7 @@
     "test:watch": "bun test --watch"
   },
   "dependencies": {
-    "alchemy-effect": "../../forks/alchemy-effect/alchemy-effect/alchemy-effect-0.6.0.tgz",
+    "alchemy-effect": "../../forks/alchemy-effect/alchemy-effect/alchemy-effect-0.6.0-cli-service-planfix3.tgz",
     "effect": "^3.19.3"
   },
   "devDependencies": {

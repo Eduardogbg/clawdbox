@@ -11,6 +11,17 @@
 - [x] Migrated tests to `bun:test` and removed Vitest configs/deps
 - [x] Typed IaC test context to avoid `any`/internal CLI types and keep typecheck clean
 - [x] Ensured IaC integration tests always attempt cleanup via `Effect.ensuring(destroy())`
+- [x] Updated Telegram E2E to deploy + message + teardown (Cloudflare cleanup)
+- [x] Deleted deployed `clawdbox-*` Cloudflare resources
+- [x] Added Cloudflare fetch helper in alchemy-effect fork and used it for Secrets Store create
+- [x] Ran Telegram+Cloudflare E2E with test-tagged teardown
+- [x] Repacked alchemy-effect tarball and reinstalled deps after fetch helper change
+- [x] Added safe E2E tag guard and moved Telegram+Cloudflare E2E to IaC tests
+- [x] Gated operator e2e tests behind `RUN_OPERATOR_E2E`
+- [x] Exported `alchemy-effect/cli/service` and inlined test CLI layer (no ink/vitest)
+- [x] Allowed virtual binding sources in alchemy-effect apply/plan (DO namespace)
+- [x] Marked `cloudflare:workers` as external for worker bundling
+- [x] Ran full IaC suite with Telegram + Cloudflare E2E (deploy + message + teardown)
 
 ### Completed Session 014
 - [x] Updated @cloudflare/containers to 0.0.31 (breaking API changes)
@@ -67,7 +78,7 @@
 - [x] Unit tests for handler (10 tests)
 - [x] TELEGRAM_BOT_TOKEN available in telegram.json
 - [ ] Deploy and configure webhook URL
-- [x] E2E deployment + message test added (see packages/telegram-webhook/test/e2e.test.ts)
+- [x] E2E deployment + message test added (see packages/iac/test/telegram-e2e.test.ts)
 
 ## Phase 4: Agent Runtime - MOSTLY COMPLETE
 - [x] Dockerfile for agent container (+ Alpine alternative)
@@ -103,7 +114,7 @@ packages/
 ```
 
 ## Deployed Resources
-- [x] Operator Worker: https://clawdbox-operator.eduardogbg.workers.dev
+- [ ] Operator Worker currently deployed (last check: no `clawdbox-*` resources found)
 
 ## Test Results (Session 014)
 ```
@@ -138,11 +149,9 @@ packages/
 
 ## Test Results (Post-Ralph)
 ```
-=== IaC (container test) ===
- ✓ test/container.test.ts (3 tests)
-
-=== Telegram E2E ===
- ✓ test/e2e.test.ts (deploy + webhook + message)
+=== IaC (full run, RUN_TELEGRAM_E2E=1) ===
+ ✓ 16 passed | 25 skipped
+ ✓ Telegram + Cloudflare E2E (deploy + webhook + message + teardown)
 ```
 
 ## Known Issues

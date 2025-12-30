@@ -9,6 +9,7 @@ import { describe, it, expect, afterAll } from "bun:test";
 
 const OPERATOR_URL =
   process.env.OPERATOR_URL || "https://clawdbox-operator.eduardogbg.workers.dev";
+const runOperatorE2E = process.env.RUN_OPERATOR_E2E === "1";
 
 // Type definitions for API responses
 interface Task {
@@ -50,7 +51,7 @@ interface PermissionsResponse {
   sessionId?: string;
 }
 
-describe("Operator E2E Integration", () => {
+describe.if(runOperatorE2E)("Operator E2E Integration", () => {
   let testTaskId: string | null = null;
 
   afterAll(async () => {
@@ -186,7 +187,7 @@ describe("Operator E2E Integration", () => {
   });
 });
 
-describe("Operator Session & Permission Flow", () => {
+describe.if(runOperatorE2E)("Operator Session & Permission Flow", () => {
   let taskId: string;
   let sessionId: string;
   let permissionId: string;
@@ -382,7 +383,7 @@ describe("Operator Session & Permission Flow", () => {
   });
 });
 
-describe("Operator Permission Queries", () => {
+describe.if(runOperatorE2E)("Operator Permission Queries", () => {
   let taskId: string;
   let sessionId: string;
 
@@ -447,7 +448,7 @@ describe("Operator Permission Queries", () => {
   });
 });
 
-describe("Operator Spawn Agent", () => {
+describe.if(runOperatorE2E)("Operator Spawn Agent", () => {
   it("should fail spawn without AGENT_WORKER_URL configured", async () => {
     // Create a task first
     const taskResponse = await fetch(`${OPERATOR_URL}/tasks`, {

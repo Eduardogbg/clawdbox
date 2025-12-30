@@ -12,6 +12,7 @@ telegram.json
 
 # iac state
 **/.alchemy/state
+**/.alchemy/out
 
 # wrangler state
 **/.wrangler
