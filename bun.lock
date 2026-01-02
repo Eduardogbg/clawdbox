@@ -38,7 +38,7 @@
       "name": "@clawdbox/iac",
       "version": "0.0.1",
       "dependencies": {
-        "alchemy-effect": "../../forks/alchemy-effect/alchemy-effect/alchemy-effect-0.6.0-cli-service-planfix3.tgz",
+        "alchemy-effect": "../../forks/alchemy-effect/alchemy-effect/alchemy-effect-0.6.0.tgz",
         "effect": "^3.19.3",
       },
       "devDependencies": {
@@ -69,6 +69,20 @@
       "dependencies": {
         "cloudflare": "^5.2.0",
         "cloudflare-fixed": "file:../../forks/cloudflare-typescript",
+      },
+    },
+    "packages/takopi-worker": {
+      "name": "@clawdbox/takopi-worker",
+      "version": "0.0.1",
+      "dependencies": {
+        "@cloudflare/containers": "^0.0.31",
+        "effect": "^3.19.3",
+      },
+      "devDependencies": {
+        "@cloudflare/workers-types": "^4.20250805.0",
+        "@types/bun": "latest",
+        "typescript": "^5.9.3",
+        "wrangler": "^4.17.2",
       },
     },
     "packages/telegram-webhook": {
@@ -157,6 +171,8 @@
     "@clawdbox/iac": ["@clawdbox/iac@workspace:packages/iac"],
 
     "@clawdbox/operator": ["@clawdbox/operator@workspace:packages/operator"],
+
+    "@clawdbox/takopi-worker": ["@clawdbox/takopi-worker@workspace:packages/takopi-worker"],
 
     "@clawdbox/telegram-webhook": ["@clawdbox/telegram-webhook@workspace:packages/telegram-webhook"],
 
@@ -514,7 +530,7 @@
 
     "agentkeepalive": ["agentkeepalive@4.6.0", "", { "dependencies": { "humanize-ms": "^1.2.1" } }, "sha512-kja8j7PjmncONqaTsB8fQ+wE2mSU2DJ9D4XKoJ5PFWIdRMa6SLSN1ff4mOr4jCbfRSsxR4keIiySJU0N9T5hIQ=="],
 
-    "alchemy-effect": ["alchemy-effect@../../forks/alchemy-effect/alchemy-effect/alchemy-effect-0.6.0-cli-service-planfix3.tgz", { "dependencies": { "@aws-sdk/credential-providers": "^3.0.0", "@effect/vitest": "^0.27.0", "@smithy/node-config-provider": "^4.0.0", "@smithy/shared-ini-file-loader": "^4.3.4", "@smithy/types": "^4.8.1", "@types/aws-lambda": "^8.10.152", "aws4fetch": "^1.0.20", "cloudflare": "^5.2.0", "esbuild": "^0.25.12", "fast-xml-parser": "^5.2.5", "ignore": "^7.0.5", "itty-aws": "^0.8.10", "jszip": "^3.10.1", "yaml": "^2.0.0" }, "peerDependencies": { "@effect/platform": "*", "@effect/platform-node": "*", "effect": "*" }, "optionalPeers": ["@effect/platform", "@effect/platform-node", "effect"], "bin": { "alchemy-effect": "bin/alchemy-effect.js" } }],
+    "alchemy-effect": ["alchemy-effect@../../forks/alchemy-effect/alchemy-effect/alchemy-effect-0.6.0.tgz", { "dependencies": { "@aws-sdk/credential-providers": "^3.0.0", "@effect/vitest": "^0.27.0", "@smithy/node-config-provider": "^4.0.0", "@smithy/shared-ini-file-loader": "^4.3.4", "@smithy/types": "^4.8.1", "@types/aws-lambda": "^8.10.152", "aws4fetch": "^1.0.20", "cloudflare": "^5.2.0", "esbuild": "^0.25.12", "fast-xml-parser": "^5.2.5", "ignore": "^7.0.5", "itty-aws": "^0.8.10", "jszip": "^3.10.1", "yaml": "^2.0.0" }, "peerDependencies": { "@effect/platform": "*", "@effect/platform-node": "*", "effect": "*" }, "optionalPeers": ["@effect/platform", "@effect/platform-node", "effect"], "bin": { "alchemy-effect": "bin/alchemy-effect.js" } }],
 
     "as-table": ["as-table@1.0.55", "", { "dependencies": { "printable-characters": "^1.0.42" } }, "sha512-xvsWESUJn0JN421Xb9MQw6AsMHRCUknCe0Wjlxvjud80mU4E6hQf1A6NzQKcYNmYw62MfzEtXc+badstZP3JpQ=="],
 

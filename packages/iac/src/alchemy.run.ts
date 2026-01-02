@@ -1,5 +1,7 @@
-import { defineStack, defineStages } from "alchemy-effect";
+import { $, declare, defineStack, defineStages } from "alchemy-effect";
 import * as Cloudflare from "alchemy-effect/cloudflare";
+import * as Effect from "effect/Effect";
+import * as path from "node:path";
 
 // =============================================================================
 // Secrets Store
@@ -12,7 +14,8 @@ const Secrets = Cloudflare.SecretsStore.Store("Secrets", {
     TELEGRAM_BOT_TOKEN: process.env.TELEGRAM_BOT_TOKEN ?? "placeholder",
     TAKOPI_BOT_TOKEN: process.env.TAKOPI_BOT_TOKEN ?? "placeholder",
     TAKOPI_CHAT_ID: process.env.TAKOPI_CHAT_ID ?? "0",
-    OPENAI_API_KEY: process.env.OPENAI_API_KEY ?? "placeholder",
+    OPENAI_API_KEY:
+      process.env.OPENAI_API_KEY ?? process.env.CODEX_API_KEY ?? "placeholder",
     ANTHROPIC_API_KEY: process.env.ANTHROPIC_API_KEY ?? "placeholder",
     GITHUB_PAT: process.env.GITHUB_PAT ?? "placeholder",
   },
@@ -56,6 +59,42 @@ const Operator = Cloudflare.DurableObject.Namespace("Operator", {
 });
 
 // =============================================================================
+// Takopi Container + Worker
+// =============================================================================
+const takopiWorkerMain = path.resolve(
+  import.meta.dirname,
+  "../../takopi-worker/src/index.ts",
+);
+
+const TakopiContainer = Cloudflare.Container.Container("TakopiContainer", {
+  className: "TakopiContainerDO",
+});
+
+const requireTakopiContainer = declare<
+  Cloudflare.Container.Bind<typeof TakopiContainer>
+>();
+
+class TakopiWorker extends Cloudflare.Worker.serve("TakopiWorker", {
+  fetch: Effect.fn(function* () {
+    yield* requireTakopiContainer;
+    return new Response("ok");
+  }),
+})({
+  name: "clawdbox-takopi-worker",
+  main: takopiWorkerMain,
+  bindings: $(Cloudflare.Container.Bind(TakopiContainer)),
+  compatibility: {
+    date: "2024-12-01",
+    flags: ["nodejs_compat"],
+  },
+  migrations: {
+    new_tag: "v1",
+    new_sqlite_classes: ["TakopiContainerDO"],
+  },
+  subdomain: { enabled: true },
+}) {}
+
+// =============================================================================
 // Stack Definition
 // =============================================================================
 // Get account ID from environment, or throw at runtime if not set
@@ -78,6 +117,6 @@ export default defineStack({
     },
   })),
   // Note: R2 (Storage) excluded until enabled in CF dashboard
-  resources: [Secrets, Cache, Analytics],
+  resources: [Secrets, Cache, Analytics, TakopiWorker],
   providers: Cloudflare.providers(),
 });

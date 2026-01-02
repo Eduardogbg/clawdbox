@@ -7,8 +7,32 @@
 - [x] Drafted takopi + Cloudflare Containers design spec
 - [x] Add takopi container image + entrypoint (new package)
 - [x] Add takopi worker + container DO for start/stop/status
-- [ ] Extend IaC stack to deploy takopi worker + container binding (container config still wrangler-only)
-- [ ] Add takopi E2E (deploy, start, send Telegram message, stop)
+- [x] Extend IaC stack to deploy takopi worker + container binding (container config still wrangler-only)
+- [x] Add takopi E2E (deploy, start, stop via wrangler)
+- [x] Add dev environment deploy script for takopi (IaC + wrangler)
+- [x] Add crane-based container push + registry credential flow for takopi dev deploy
+- [x] Allow takopi E2E to use prebuilt registry image (skip Docker when provided)
+- [x] Auto-start takopi container after dev deploy (waits for worker health)
+- [x] Fix takopi container sleepAfter format, add container-running check, and make dev start idempotent
+- [x] Redact takopi secrets from /status (sanitize stored config)
+- [x] Allow takopi to accept group chat IDs when configured (TAKOPI_ALLOW_GROUP)
+- [x] Auto-delete Telegram webhook on takopi start (TAKOPI_DELETE_WEBHOOK) to allow polling
+- [x] Strip command/mention prefixes from takopi updates for privacy-friendly group prompts
+- [x] Allow reply fallbacks when Telegram rejects reply_to (allow_sending_without_reply)
+- [x] Fix takopi entrypoint patching (newline matching + truthy env flags)
+- [x] Pin takopi ref to 8eda3f5 to avoid Python >=3.14 break on master
+- [x] Add CODEX_API_KEY alias, TAKOPI_CODEX_ARGS default, and fix _send_or_edit_markdown allow_sending_without_reply patch
+- [x] Add takopi log server endpoint for Cloudflare container diagnostics
+- [x] Strip wrapping quotes from TAKOPI_CODEX_ARGS (fix codex arg parsing) and refresh dev env
+- [x] Normalize TAKOPI_CODEX_ARGS parsing (trim/strip quotes before shlex split) and redeploy dev container
+- [x] Add Telegram debug payload for resolved codex args (TAKOPI_DEBUG/TAKOPI_DEBUG_ARGS)
+- [x] Include argv in codex failure errors to debug combined-arg issue
+- [x] Fix entrypoint codex args patch syntax and restore quoted .env value
+- [x] Use chr() in exec_bridge patch to avoid quote-escaping syntax errors
+- [x] Move codex extra_args after exec subcommand so --sandbox applies
+- [x] Switch default codex args to --dangerously-bypass-approvals-and-sandbox (no --ask-for-approval)
+- [x] Add Telegram API debug summary on startup (getMe/getWebhookInfo/getUpdates)
+- [x] Document Cloudflare compute options for Telegram polling + recommendation
 
 ## Current Session: Post-Ralph Cleanup
 

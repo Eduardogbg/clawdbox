@@ -20,6 +20,11 @@ export const TakopiStartConfigSchema = S.Struct({
   openAiApiKey: S.optional(S.String),
   codexProfile: S.optional(S.String),
   codexConfigToml: S.optional(S.String),
+  codexArgs: S.optional(S.String),
+  logServer: S.optional(Bool),
+  allowGroup: S.optional(Bool),
+  deleteWebhook: S.optional(Bool),
+  stripCommands: S.optional(Bool),
   finalNotify: S.optional(Bool),
   debug: S.optional(Bool),
   githubPat: S.optional(S.String),
@@ -47,6 +52,7 @@ export const toContainerEnv = (config: TakopiStartConfig): Record<string, string
 
   if (config.openAiApiKey) {
     envVars.OPENAI_API_KEY = config.openAiApiKey;
+    envVars.CODEX_API_KEY = config.openAiApiKey;
   }
 
   if (config.codexProfile) {
@@ -55,6 +61,30 @@ export const toContainerEnv = (config: TakopiStartConfig): Record<string, string
 
   if (config.codexConfigToml) {
     envVars.TAKOPI_CODEX_CONFIG_TOML = config.codexConfigToml;
+  }
+
+  if (config.codexArgs) {
+    envVars.TAKOPI_CODEX_ARGS = config.codexArgs;
+  }
+
+  if (config.logServer) {
+    envVars.TAKOPI_LOG_SERVER = "true";
+  }
+
+  if (config.allowGroup) {
+    envVars.TAKOPI_ALLOW_GROUP = "true";
+  }
+
+  if (config.deleteWebhook === false) {
+    envVars.TAKOPI_DELETE_WEBHOOK = "false";
+  } else if (config.deleteWebhook) {
+    envVars.TAKOPI_DELETE_WEBHOOK = "true";
+  }
+
+  if (config.stripCommands === false) {
+    envVars.TAKOPI_STRIP_COMMANDS = "false";
+  } else if (config.stripCommands) {
+    envVars.TAKOPI_STRIP_COMMANDS = "true";
   }
 
   if (config.githubPat) {

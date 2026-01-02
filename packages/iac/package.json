@@ -7,12 +7,14 @@
     "alchemy": "bun run src/alchemy.run.ts",
     "deploy": "bun run src/deploy.ts",
     "destroy": "bun run src/deploy.ts --destroy",
+    "dev:env": "bun run src/dev-environment.ts",
+    "dev:destroy": "bun run src/dev-environment.ts --destroy",
     "typecheck": "tsc --noEmit",
     "test": "bun test",
     "test:watch": "bun test --watch"
   },
   "dependencies": {
-    "alchemy-effect": "../../forks/alchemy-effect/alchemy-effect/alchemy-effect-0.6.0-cli-service-planfix3.tgz",
+    "alchemy-effect": "../../forks/alchemy-effect/alchemy-effect/alchemy-effect-0.6.0.tgz",
     "effect": "^3.19.3"
   },
   "devDependencies": {

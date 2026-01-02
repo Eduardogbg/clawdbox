@@ -24,9 +24,33 @@ export interface TakopiStartConfig {
   openAiApiKey?: string;
   codexProfile?: string;
   codexConfigToml?: string;
+  codexArgs?: string;
+  logServer?: boolean;
+  allowGroup?: boolean;
+  deleteWebhook?: boolean;
+  stripCommands?: boolean;
   finalNotify?: boolean;
   debug?: boolean;
   githubPat?: string;
+}
+
+export interface TakopiStoredConfig {
+  chatId: number;
+  repoUrl: string;
+  repoBranch?: string;
+  workdir?: string;
+  codexProfile?: string;
+  codexArgs?: string;
+  logServer?: boolean;
+  allowGroup?: boolean;
+  deleteWebhook?: boolean;
+  stripCommands?: boolean;
+  finalNotify?: boolean;
+  debug?: boolean;
+  hasBotToken: boolean;
+  hasOpenAiApiKey: boolean;
+  hasGithubPat: boolean;
+  hasCodexConfigToml: boolean;
 }
 
 /**
@@ -46,7 +70,7 @@ export type ContainerStatus =
 export interface ContainerState {
   status: ContainerStatus;
   instanceId: string | null;
-  config: TakopiStartConfig | null;
+  config: TakopiStoredConfig | null;
   startedAt: number | null;
   stoppedAt: number | null;
   error: string | null;

@@ -8,7 +8,13 @@ import * as Effect from "effect/Effect";
 import { pipe } from "effect/Function";
 
 import { decodeStartConfig, toContainerEnv } from "./config.js";
-import type { Env, ContainerState, ContainerStatus } from "./types.js";
+import type {
+  Env,
+  ContainerState,
+  ContainerStatus,
+  TakopiStartConfig,
+  TakopiStoredConfig,
+} from "./types.js";
 
 const SQL = {
   INIT: `
@@ -38,7 +44,8 @@ const SQL = {
 export class TakopiContainerDO extends Container<Env> {
   private initialized = false;
 
-  override sleepAfter = "30 minutes";
+  override defaultPort = 8080;
+  override sleepAfter = "30m";
 
   private async ensureInitialized(): Promise<void> {
     if (this.initialized) return;
@@ -60,10 +67,14 @@ export class TakopiContainerDO extends Container<Env> {
       };
     }
 
+    const rawConfig = row.config_json
+      ? (JSON.parse(row.config_json as string) as unknown)
+      : null;
+
     return {
       status: row.status as ContainerStatus,
       instanceId: row.instance_id as string | null,
-      config: row.config_json ? JSON.parse(row.config_json as string) : null,
+      config: this.sanitizeStoredConfig(rawConfig),
       startedAt: row.started_at as number | null,
       stoppedAt: row.stopped_at as number | null,
       error: row.error as string | null,
@@ -82,6 +93,64 @@ export class TakopiContainerDO extends Container<Env> {
       updated.startedAt,
       updated.stoppedAt,
       updated.error,
+    );
+  }
+
+  private toStoredConfig(config: TakopiStartConfig): TakopiStoredConfig {
+    return {
+      chatId: config.chatId,
+      repoUrl: config.repoUrl,
+      repoBranch: config.repoBranch,
+      workdir: config.workdir,
+      codexProfile: config.codexProfile,
+      codexArgs: config.codexArgs,
+      logServer: config.logServer,
+      allowGroup: config.allowGroup,
+      deleteWebhook: config.deleteWebhook,
+      stripCommands: config.stripCommands,
+      finalNotify: config.finalNotify,
+      debug: config.debug,
+      hasBotToken: Boolean(config.botToken),
+      hasOpenAiApiKey: Boolean(config.openAiApiKey),
+      hasGithubPat: Boolean(config.githubPat),
+      hasCodexConfigToml: Boolean(config.codexConfigToml),
+    };
+  }
+
+  private sanitizeStoredConfig(config: unknown): TakopiStoredConfig | null {
+    if (!config || typeof config !== "object") {
+      return null;
+    }
+    const record = config as Record<string, unknown>;
+    if (this.isStoredConfig(record)) {
+      return record;
+    }
+    if (this.isStartConfig(record)) {
+      return this.toStoredConfig(record);
+    }
+    return null;
+  }
+
+  private isStoredConfig(
+    record: Record<string, unknown>,
+  ): record is Record<string, unknown> & TakopiStoredConfig {
+    return (
+      typeof record.chatId === "number" &&
+      typeof record.repoUrl === "string" &&
+      typeof record.hasBotToken === "boolean" &&
+      typeof record.hasOpenAiApiKey === "boolean" &&
+      typeof record.hasGithubPat === "boolean" &&
+      typeof record.hasCodexConfigToml === "boolean"
+    );
+  }
+
+  private isStartConfig(
+    record: Record<string, unknown>,
+  ): record is Record<string, unknown> & TakopiStartConfig {
+    return (
+      typeof record.botToken === "string" &&
+      typeof record.chatId === "number" &&
+      typeof record.repoUrl === "string"
     );
   }
 
@@ -106,6 +175,10 @@ export class TakopiContainerDO extends Container<Env> {
 
       if (url.pathname === "/health" && method === "GET") {
         return this.handleHealth();
+      }
+
+      if (url.pathname === "/logs" && method === "GET") {
+        return this.containerFetch(request);
       }
 
       return new Response(JSON.stringify({ error: "Not found" }), {
@@ -159,7 +232,7 @@ export class TakopiContainerDO extends Container<Env> {
     this.setContainerState({
       status: "starting",
       instanceId,
-      config,
+      config: this.toStoredConfig(config),
       startedAt: Date.now(),
       stoppedAt: null,
       error: null,

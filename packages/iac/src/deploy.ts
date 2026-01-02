@@ -11,9 +11,10 @@ import { config } from "dotenv";
 import * as Layer from "effect/Layer";
 import { FetchHttpClient } from "@effect/platform";
 import { NodeContext } from "@effect/platform-node";
-import { apply, destroy, make as makeApp, State, dotAlchemy } from "alchemy-effect";
+import { $, apply, destroy, make as makeApp, State, dotAlchemy, declare } from "alchemy-effect";
 import * as Cloudflare from "alchemy-effect/cloudflare";
 import * as Context from "effect/Context";
+import * as path from "node:path";
 
 // CLI Service interface (matches alchemy-effect's CLI)
 interface CLIService {
@@ -68,7 +69,8 @@ class Secrets extends Cloudflare.SecretsStore.Store("Secrets", {
     TELEGRAM_BOT_TOKEN: process.env.TELEGRAM_BOT_TOKEN ?? "placeholder",
     TAKOPI_BOT_TOKEN: process.env.TAKOPI_BOT_TOKEN ?? "placeholder",
     TAKOPI_CHAT_ID: process.env.TAKOPI_CHAT_ID ?? "0",
-    OPENAI_API_KEY: process.env.OPENAI_API_KEY ?? "placeholder",
+    OPENAI_API_KEY:
+      process.env.OPENAI_API_KEY ?? process.env.CODEX_API_KEY ?? "placeholder",
     ANTHROPIC_API_KEY: process.env.ANTHROPIC_API_KEY ?? "placeholder",
     GITHUB_PAT: process.env.GITHUB_PAT ?? "placeholder",
   },
@@ -82,6 +84,42 @@ class Cache extends Cloudflare.KV.Namespace("Cache", {
 // D1 Database - Analytics
 class Analytics extends Cloudflare.D1.Database("Analytics", {
   name: "clawdbox-analytics",
+}) {}
+
+// =============================================================================
+// Takopi Container + Worker
+// =============================================================================
+const takopiWorkerMain = path.resolve(
+  import.meta.dirname,
+  "../../takopi-worker/src/index.ts",
+);
+
+const TakopiContainer = Cloudflare.Container.Container("TakopiContainer", {
+  className: "TakopiContainerDO",
+});
+
+const requireTakopiContainer = declare<
+  Cloudflare.Container.Bind<typeof TakopiContainer>
+>();
+
+class TakopiWorker extends Cloudflare.Worker.serve("TakopiWorker", {
+  fetch: Effect.fn(function* () {
+    yield* requireTakopiContainer;
+    return new Response("ok");
+  }),
+})({
+  name: "clawdbox-takopi-worker",
+  main: takopiWorkerMain,
+  bindings: $(Cloudflare.Container.Bind(TakopiContainer)),
+  compatibility: {
+    date: "2024-12-01",
+    flags: ["nodejs_compat"],
+  },
+  migrations: {
+    new_tag: "v1",
+    new_sqlite_classes: ["TakopiContainerDO"],
+  },
+  subdomain: { enabled: true },
 }) {}
 
 // =============================================================================
@@ -123,14 +161,16 @@ const deployStack = Effect.gen(function* () {
 
   // Apply all resources
   yield* Effect.logInfo("Creating/updating resources...");
-  const result = yield* apply(Secrets, Cache, Analytics);
+  const infra = yield* apply(Secrets, Cache, Analytics);
+  yield* apply(TakopiWorker);
 
-  yield* Effect.logInfo("Secrets Store ID: " + result.Secrets.storeId);
-  yield* Effect.logInfo("KV Namespace ID: " + result.Cache.namespaceId);
-  yield* Effect.logInfo("D1 Database ID: " + result.Analytics.databaseId);
+  yield* Effect.logInfo("Secrets Store ID: " + infra.Secrets.storeId);
+  yield* Effect.logInfo("KV Namespace ID: " + infra.Cache.namespaceId);
+  yield* Effect.logInfo("D1 Database ID: " + infra.Analytics.databaseId);
+  yield* Effect.logInfo("Takopi Worker deployed");
 
   yield* Effect.logInfo("=== Deployment Complete ===");
-  return result;
+  return infra;
 });
 
 const destroyStack = Effect.gen(function* () {
