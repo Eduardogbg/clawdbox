@@ -32,6 +32,15 @@
 - [x] Move codex extra_args after exec subcommand so --sandbox applies
 - [x] Switch default codex args to --dangerously-bypass-approvals-and-sandbox (no --ask-for-approval)
 - [x] Add Telegram API debug summary on startup (getMe/getWebhookInfo/getUpdates)
+
+## Current Session: 005 TG Webhook Takopi Port
+
+### In Progress
+- [ ] Review takopi UX + exec flow for porting
+- [ ] Decide on webhook Worker + DO + container responsibilities
+- [ ] Draft TS+Effect module boundaries and data schemas
+
+### Completed
 - [x] Document Cloudflare compute options for Telegram polling + recommendation
 
 ## Current Session: Post-Ralph Cleanup
