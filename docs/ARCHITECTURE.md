@@ -1,6 +1,6 @@
 # Clawdbox Architecture
 
-Clawdbox is a system for running Claude agents on Cloudflare infrastructure with Telegram as the user interface.
+Clawdbox runs Codex agents on Cloudflare infrastructure with Telegram as the user interface.
 
 ## System Overview
 
@@ -9,93 +9,75 @@ Clawdbox is a system for running Claude agents on Cloudflare infrastructure with
 │    Telegram     │       │                    Cloudflare Edge                          │
 │   (User)        │       │                                                             │
 │   ╔═════════╗   │       │  ┌──────────────┐      ┌───────────────┐                    │
-│   ║ Chat    ║◄──┼───────┼──┤ Telegram     │      │   Operator    │                    │
-│   ║ /task   ║   │       │  │  Webhook     ├─────►│ Durable Object│                    │
-│   ║ /status ║   │       │  │  Worker      │      │ (SQLite State)│                    │
-│   ║ /help   ║   │       │  └──────────────┘      └───────┬───────┘                    │
+│   ║ Chat    ║◄──┼───────┼──┤ Agent Worker │      │ Orchestrator  │                    │
+│   ║ /new    ║   │       │  │  (Webhook)   ├─────►│ Durable Object│                    │
+│   ║ /help   ║   │       │  └──────────────┘      │ (SQLite State)│                    │
 │   ╚═════════╝   │       │                                │                            │
 └─────────────────┘       │                                ▼                            │
                           │                       ┌────────────────┐                    │
-                          │                       │  Agent Worker  │                    │
-                          │                       │  (Container DO)│                    │
+                          │                       │ Agent Container│                    │
+                          │                       │   DO (start)   │                    │
                           │                       └────────┬───────┘                    │
                           │                                │                            │
                           │                                ▼                            │
-                          │                    ┌───────────────────┐    ┌─────────────┐ │
-                          │                    │  Agent Container  │    │  R2 Bucket  │ │
-                          │                    │  (Claude SDK)     │◄───┤  (Repo      │ │
-                          │                    │  Docker + Bun     │    │   Storage)  │ │
-                          │                    └───────────────────┘    └─────────────┘ │
+                          │                    ┌───────────────────┐                    │
+                          │                    │  Codex Container  │                    │
+                          │                    │  Docker + Bun     │                    │
+                          │                    └───────────────────┘                    │
                           └─────────────────────────────────────────────────────────────┘
 ```
 
 ## Components
 
-### 1. Telegram Webhook Worker (`packages/telegram-webhook`)
+### 1. Agent Worker (`packages/agent-worker`)
 - Receives webhook updates from Telegram Bot API
-- Parses commands: `/task`, `/status`, `/help`
-- Routes requests to Operator Durable Object
-- Handles permission approval/denial via inline buttons
+- Parses commands: `/new`, `/help`
+- Routes updates to the Orchestrator Durable Object
 
-### 2. Operator Durable Object (`packages/operator`)
-- Central coordinator for agent orchestration
-- SQLite-backed state management:
-  - **Tasks**: Task definitions, status, prompts
-  - **Sessions**: Container sessions, Claude session IDs
-  - **Permissions**: Tool use approval requests
-- REST API endpoints:
-  - `POST /tasks` - Create new task
-  - `GET /tasks/:id` - Get task details
-  - `PATCH /tasks/:id/status` - Update task status
-  - `POST /sessions` - Create session for task
-  - `POST /permission` - Synchronous permission request (long-poll)
-  - `POST /permissions/:id/resolve` - Resolve permission
-  - `POST /tasks/:id/spawn` - Spawn agent container
+### 2. Orchestrator Durable Object (`packages/agent-worker`)
+- Central coordinator for chat/session state
+- SQLite-backed state:
+  - **Chat session**: resume ID + epoch
+  - **Message queue**: small buffer before running Codex
+  - **Active run**: ensures single run per chat
+- Streams Codex progress back to Telegram via edits
 
-### 3. Agent Worker (`packages/agent-worker`)
-- Hosts Container-enabled Durable Objects
-- Routes requests to specific container instances via `/agent/:id/*`
-- Container DO lifecycle management (start, stop, status)
+### 3. Agent Container DO (`packages/agent-worker`)
+- Container-enabled Durable Object that ensures container is running
+- Forwards `/run` to the container HTTP server
+- Tracks container state in SQLite
 
-### 4. Agent Container (`packages/agent-container`)
-- Docker container running Claude Agent SDK
-- Uses `@anthropic-ai/claude-agent-sdk` for agent execution
-- Permission hook routes tool approvals through Operator
-- Repository cloning from GitHub or R2 tarballs
-- Streams output and reports completion/errors
+### 4. Codex Container (`packages/agent-container`)
+- Docker container running Codex CLI
+- Exposes HTTP `/run` to start codex exec
+- Streams JSONL events back to Orchestrator DO
+- Optional repo bootstrap from `REPO_URL`
 
 ### 5. IaC (`packages/iac`)
 - Infrastructure as Code using `alchemy-effect`
 - Defines Cloudflare resources:
   - Workers
   - Durable Object namespaces
-  - R2 Buckets
   - Secrets Store
 - Integration tests for resource deployment
 
 ## Data Flow
 
-### Task Creation Flow
+### Message Flow
 ```
-1. User sends /task command in Telegram
-2. Telegram Webhook receives update
-3. Webhook creates task via Operator POST /tasks
-4. Operator stores task in SQLite
-5. Operator spawns agent via Agent Worker POST /spawn
-6. Agent Worker starts container with configuration
-7. Container clones repo and runs Claude SDK
+1. User sends message in Telegram
+2. Agent Worker receives webhook update
+3. Worker forwards update to Orchestrator DO
+4. Orchestrator enqueues + starts container run
+5. Container runs Codex CLI and streams JSONL
+6. Orchestrator edits progress + posts final reply
 ```
 
-### Permission Flow
+### Session Flow
 ```
-1. Agent attempts dangerous tool (Bash, Write, Edit)
-2. Agent container sends POST /permission to Operator
-3. Operator creates pending permission in SQLite
-4. Operator notifies user via Telegram (inline buttons)
-5. User taps Approve/Deny
-6. Telegram Webhook resolves permission
-7. Operator long-poll returns result to agent
-8. Agent proceeds or blocks based on decision
+1. First message starts a Codex session (thread id)
+2. Orchestrator persists resume id per chat
+3. /new clears session and starts a fresh context
 ```
 
 ### Auto-Allowed Tools
@@ -122,21 +104,17 @@ Safe Bash commands (auto-allowed):
 - **Languages**: TypeScript, Effect
 - **Build**: Bun
 - **IaC**: alchemy-effect (local fork)
-- **Agent**: Claude Agent SDK
+- **Agent**: Codex CLI
 
 ## Environment Variables
 
-### Operator Worker
-- `AGENT_WORKER_URL` - URL of the Agent Worker
-
-### Agent Container
-- `ANTHROPIC_API_KEY` - API key for Claude
-- `GITHUB_PAT` - Personal access token for private repos
-- `AGENT_CONFIG` - JSON configuration (injected by Container DO)
-
-### Telegram Webhook
+### Agent Worker
 - `TELEGRAM_BOT_TOKEN` - Bot token from @BotFather
-- `OPERATOR_URL` - URL of the Operator Worker
+- `TELEGRAM_SECRET_TOKEN` - Webhook secret token (optional)
+- `CODEX_API_KEY`/`OPENAI_API_KEY` - Codex API key
+- `CODEX_ARGS` - Additional codex exec args
+- `CONTAINER_REPO_URL` - Repo clone URL (optional)
+- `CONTAINER_REPO_BRANCH` - Repo branch (optional)
 
 ## Deployment
 
@@ -147,21 +125,13 @@ Safe Bash commands (auto-allowed):
 
 ### Deploy Order
 1. **Secrets Store** - Create secrets store with API keys
-2. **Operator Worker** - Deploy operator first
-3. **Agent Worker** - Deploy with Docker image
-4. **Telegram Webhook** - Deploy with bot token
-5. **Configure Telegram** - Set webhook URL via Bot API
+2. **Agent Worker** - Deploy with Docker image
+3. **Configure Telegram** - Set webhook URL via Bot API
 
 ### Commands
 ```bash
-# Deploy Operator
-cd packages/operator && npx wrangler deploy
-
 # Deploy Agent Worker (requires Docker)
 cd packages/agent-worker && npx wrangler deploy
-
-# Deploy Telegram Webhook
-cd packages/telegram-webhook && npx wrangler deploy
 
 # Run IaC tests
 cd packages/iac && bun test
@@ -170,7 +140,6 @@ cd packages/iac && bun test
 ## Testing
 
 ### Unit Tests
-- `packages/iac/test/operator.test.ts` - Operator DO unit tests
 - `packages/iac/test/container.test.ts` - Container infrastructure tests
 
 ### Integration Tests
@@ -179,11 +148,7 @@ cd packages/iac && bun test
 - `packages/iac/test/r2-bucket.test.ts` - R2 bucket (requires R2 enabled)
 
 ### E2E Tests
-- `packages/iac/test/operator-e2e.test.ts` - Full Operator API tests
-  - Task CRUD
-  - Session management
-  - Permission flow
-  - Agent reporting
+- TBD for Telegram webhook + container flow
 
 ### Running Tests
 ```bash
@@ -194,7 +159,7 @@ cd packages/iac && bun test
 bun run typecheck
 
 # Single test file
-cd packages/iac && bun test test/operator-e2e.test.ts
+cd packages/iac && bun test test/worker.test.ts
 ```
 
 ## Future Improvements

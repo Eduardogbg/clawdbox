@@ -68,11 +68,13 @@ Cons:
 
 ## Decision
 Proceed with Option A: webhook Worker + DO orchestration + container execution.
+Telegram API calls stay in the Worker/DO (not the container), and we use a small
+per-chat buffer in DO SQLite instead of Cloudflare Queues.
 
 ## Low-Level Design Decisions
 
 ### 1) Webhook Worker
-- Endpoint: `POST /webhook`.
+- Endpoint: `POST /webhook` (or `/` if preferred by deployment).
 - Verify Telegram secret token header (optional) + token in env.
 - Immediately ACK with 200 to Telegram.
 - Forward the update to DO via `fetch` (async; no long block).
@@ -82,11 +84,13 @@ Responsibilities:
 - Validate update schema.
 - Ignore non-message updates.
 - Normalize message text (strip mentions/commands like takopi).
-- Maintain per-chat session state:
+- Maintain per-chat session state (no threads for now):
   - last `resume` id
   - concurrency limits
   - in-flight message IDs
-- Call container DO to execute.
+- Small buffer in DO SQLite for pending messages.
+- Call container DO to execute Codex; stream events, render progress, and call
+  Telegram API (send/edit).
 
 Storage schema (D1 in DO sqlite):
 - `sessions(chat_id, resume_id, updated_at)`
@@ -94,19 +98,17 @@ Storage schema (D1 in DO sqlite):
 
 ### 3) Container DO
 - Provides `POST /run` to start Codex:
-  - Inputs: chat_id, message_id, prompt, resume_id, repo_url, codex_args
-- Runs Codex CLI and streams JSON events.
-- Sends Telegram updates directly:
-  - Progress edits (`editMessageText`)
-  - Final response (`sendMessage`)
-- Writes updated resume_id to Orchestrator DO at end.
+  - Inputs: prompt, resume_id, repo_url, codex_args
+- Ensures container is started and runs Codex CLI.
+- Streams JSONL events back to Orchestrator DO.
+- Avoids direct Telegram API access.
 
 ### 4) Telegram UX Port
 Preserve these behaviors from takopi:
 - Progress message that updates every ~2s.
 - Status lines for command execution / tool calls / file changes.
 - Final message with resume id.
-- Cancel via replying `/cancel` to progress message.
+- `/new` starts a new context; the whole chat maps to one session.
 
 ### 5) TypeScript + Effect Port
 Suggested modules:
@@ -120,7 +122,7 @@ Suggested modules:
 - Container request duration limits: need to confirm Container DO supports long-running execs.
 - Telegram edit limits (rate and size); need backoff or coalescing.
 - Resume ID storage and race conditions for concurrent messages.
-- Whether to keep Python implementation in container vs full TS port inside container.
+- Mapping chat -> session -> container lifecycle.
 
 ## Suggested Next Steps
 1) Design DO interfaces (`/run`, `/status`, `/cancel`) and schemas.
