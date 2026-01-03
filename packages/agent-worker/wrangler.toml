@@ -1,5 +1,5 @@
-# Agent Worker with Container DO
-# This Worker hosts the AgentContainerDO that controls Claude agent containers
+# Agent Worker with Container DO + Orchestrator DO
+# This Worker handles Telegram webhooks and runs Codex via Containers.
 
 name = "clawdbox-agent-worker"
 main = "src/index.ts"
@@ -16,15 +16,20 @@ image = "../agent-container/Dockerfile"
 instance_type = "basic"  # 1/4 vCPU, 1 GiB RAM, 4 GB disk
 max_instances = 5
 
-# Durable Objects configuration for container
+# Durable Objects configuration
 [[durable_objects.bindings]]
 name = "AGENT_CONTAINER"
 class_name = "AgentContainerDO"
 
+# Orchestrator DO (per-chat)
+[[durable_objects.bindings]]
+name = "ORCHESTRATOR"
+class_name = "OrchestratorDO"
+
 # SQLite storage for Container DOs (required for containers)
 [[migrations]]
 tag = "v1"
-new_sqlite_classes = ["AgentContainerDO"]
+new_sqlite_classes = ["AgentContainerDO", "OrchestratorDO"]
 
 # Secrets Store binding (for accessing API keys)
 # [[secrets_stores.bindings]]

@@ -6,6 +6,15 @@ import * as path from "node:path";
 
 const imageLinePattern = /^image = ".*"$/m;
 const mainLinePattern = /^main = "(.*)"$/m;
+const nameLinePattern = /^name = ".*"$/m;
+
+const replaceNameLine = (input: string, name: string) => {
+  const updated = input.replace(nameLinePattern, `name = "${name}"`);
+  if (updated === input) {
+    throw new Error("Failed to update worker name in wrangler config");
+  }
+  return updated;
+};
 
 const replaceImageLine = (input: string, imageRef: string) => {
   const updated = input.replace(imageLinePattern, `image = "${imageRef}"`);
@@ -30,6 +39,7 @@ const replaceMainLine = (input: string, sourceDir: string) => {
 export const withWranglerConfig = <A, E, R>(
   sourcePath: string,
   imageRef: string,
+  workerName: string,
   use: (configPath: string) => Effect.Effect<A, E, R>,
 ): Effect.Effect<A, E | Error, R> =>
   Effect.acquireUseRelease(
@@ -38,7 +48,7 @@ export const withWranglerConfig = <A, E, R>(
         const source = await fs.readFile(sourcePath, "utf8");
         const sourceDir = path.dirname(sourcePath);
         const updated = replaceMainLine(
-          replaceImageLine(source, imageRef),
+          replaceNameLine(replaceImageLine(source, imageRef), workerName),
           sourceDir,
         );
         const tempDir = await fs.mkdtemp(

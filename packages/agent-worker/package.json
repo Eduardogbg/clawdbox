@@ -3,7 +3,7 @@
   "version": "0.0.1",
   "private": true,
   "type": "module",
-  "description": "Worker with Container DO for running Claude agents",
+  "description": "Telegram webhook worker with Container DO for Codex runs",
   "scripts": {
     "dev": "wrangler dev",
     "deploy": "wrangler deploy",

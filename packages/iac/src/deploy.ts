@@ -67,8 +67,6 @@ class Secrets extends Cloudflare.SecretsStore.Store("Secrets", {
   name: "clawdbox-secrets",
   secrets: {
     TELEGRAM_BOT_TOKEN: process.env.TELEGRAM_BOT_TOKEN ?? "placeholder",
-    TAKOPI_BOT_TOKEN: process.env.TAKOPI_BOT_TOKEN ?? "placeholder",
-    TAKOPI_CHAT_ID: process.env.TAKOPI_CHAT_ID ?? "0",
     OPENAI_API_KEY:
       process.env.OPENAI_API_KEY ?? process.env.CODEX_API_KEY ?? "placeholder",
     ANTHROPIC_API_KEY: process.env.ANTHROPIC_API_KEY ?? "placeholder",
@@ -87,37 +85,62 @@ class Analytics extends Cloudflare.D1.Database("Analytics", {
 }) {}
 
 // =============================================================================
-// Takopi Container + Worker
+// Agent Container + Worker
 // =============================================================================
-const takopiWorkerMain = path.resolve(
+const agentWorkerMain = path.resolve(
   import.meta.dirname,
-  "../../takopi-worker/src/index.ts",
+  "../../agent-worker/src/index.ts",
 );
 
-const TakopiContainer = Cloudflare.Container.Container("TakopiContainer", {
-  className: "TakopiContainerDO",
+const AgentContainer = Cloudflare.Container.Container("AgentContainer", {
+  className: "AgentContainerDO",
 });
 
-const requireTakopiContainer = declare<
-  Cloudflare.Container.Bind<typeof TakopiContainer>
+const Orchestrator = Cloudflare.DurableObject.Namespace("Orchestrator", {
+  className: "OrchestratorDO",
+  sqlite: true,
+});
+
+const requireAgentContainer = declare<
+  Cloudflare.Container.Bind<typeof AgentContainer>
+>();
+const requireOrchestrator = declare<
+  Cloudflare.DurableObject.Bind<typeof Orchestrator>
 >();
 
-class TakopiWorker extends Cloudflare.Worker.serve("TakopiWorker", {
+class AgentWorker extends Cloudflare.Worker.serve("AgentWorker", {
   fetch: Effect.fn(function* () {
-    yield* requireTakopiContainer;
+    yield* requireAgentContainer;
+    yield* requireOrchestrator;
     return new Response("ok");
   }),
 })({
-  name: "clawdbox-takopi-worker",
-  main: takopiWorkerMain,
-  bindings: $(Cloudflare.Container.Bind(TakopiContainer)),
+  name: "clawdbox-agent-worker",
+  main: agentWorkerMain,
+  vars: {
+    TELEGRAM_BOT_TOKEN: process.env.TELEGRAM_BOT_TOKEN ?? "placeholder",
+    TELEGRAM_SECRET_TOKEN: process.env.TELEGRAM_SECRET_TOKEN ?? "",
+    CODEX_API_KEY: process.env.CODEX_API_KEY ?? process.env.OPENAI_API_KEY ?? "",
+    OPENAI_API_KEY: process.env.OPENAI_API_KEY ?? process.env.CODEX_API_KEY ?? "",
+    CODEX_PROFILE: process.env.CODEX_PROFILE ?? "",
+    CODEX_ARGS: process.env.CODEX_ARGS ?? "",
+    CONTAINER_WORKDIR: process.env.CONTAINER_WORKDIR ?? "",
+    CONTAINER_REPO_URL: process.env.CONTAINER_REPO_URL ?? "",
+    CONTAINER_REPO_BRANCH: process.env.CONTAINER_REPO_BRANCH ?? "",
+    MAX_QUEUE_SIZE: process.env.MAX_QUEUE_SIZE ?? "",
+    PROGRESS_EDIT_MS: process.env.PROGRESS_EDIT_MS ?? "",
+  },
+  bindings: $(
+    Cloudflare.Container.Bind(AgentContainer),
+    Cloudflare.DurableObject.Bind(Orchestrator),
+  ),
   compatibility: {
     date: "2024-12-01",
     flags: ["nodejs_compat"],
   },
   migrations: {
     new_tag: "v1",
-    new_sqlite_classes: ["TakopiContainerDO"],
+    new_sqlite_classes: ["AgentContainerDO", "OrchestratorDO"],
   },
   subdomain: { enabled: true },
 }) {}
@@ -162,12 +185,12 @@ const deployStack = Effect.gen(function* () {
   // Apply all resources
   yield* Effect.logInfo("Creating/updating resources...");
   const infra = yield* apply(Secrets, Cache, Analytics);
-  yield* apply(TakopiWorker);
+  yield* apply(AgentWorker);
 
   yield* Effect.logInfo("Secrets Store ID: " + infra.Secrets.storeId);
   yield* Effect.logInfo("KV Namespace ID: " + infra.Cache.namespaceId);
   yield* Effect.logInfo("D1 Database ID: " + infra.Analytics.databaseId);
-  yield* Effect.logInfo("Takopi Worker deployed");
+  yield* Effect.logInfo("Agent Worker deployed");
 
   yield* Effect.logInfo("=== Deployment Complete ===");
   return infra;

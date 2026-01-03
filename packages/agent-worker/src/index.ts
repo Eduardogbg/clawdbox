@@ -1,57 +1,72 @@
 /**
  * Agent Worker Entry Point
  *
- * This Worker hosts the AgentContainerDO that controls Claude agent containers.
- * It provides an HTTP interface for the Operator to spawn and manage agents.
+ * Hosts the Telegram webhook handler and the Durable Objects that orchestrate
+ * Codex runs inside Cloudflare Containers.
  */
+import * as Effect from "effect/Effect";
+import { pipe } from "effect/Function";
 import { AgentContainerDO } from "./agent-container-do.js";
+import { OrchestratorDO } from "./orchestrator-do.js";
+import { decodeTelegramUpdate, getTelegramChatId } from "./telegram.js";
 import type { Env } from "./types.js";
 
-// Re-export the Container DO class for Cloudflare
-export { AgentContainerDO };
+export { AgentContainerDO, OrchestratorDO };
 
-/**
- * Worker fetch handler - routes requests to container instances
- */
+const jsonHeaders = { "Content-Type": "application/json" };
+
+const ok = (payload: unknown) =>
+  new Response(JSON.stringify(payload), { headers: jsonHeaders });
+
 export default {
-  async fetch(request: Request, env: Env): Promise<Response> {
+  async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
     const url = new URL(request.url);
 
-    // Health check at worker level
-    if (url.pathname === "/" && request.method === "GET") {
-      return new Response(
-        JSON.stringify({
-          name: "clawdbox-agent-worker",
-          version: "0.0.1",
-          status: "ok",
-        }),
-        {
-          headers: { "Content-Type": "application/json" },
-        }
-      );
+    if (request.method === "GET" && (url.pathname === "/" || url.pathname === "/health")) {
+      return ok({
+        name: "clawdbox-agent-worker",
+        version: "0.1.0",
+        status: "ok",
+      });
     }
 
-    // Route /agent/:id/* to specific container instance
-    const agentMatch = url.pathname.match(/^\/agent\/([^/]+)/);
-    if (agentMatch) {
-      const agentId = agentMatch[1];
-      const containerId = env.AGENT_CONTAINER.idFromName(agentId);
-      const container = env.AGENT_CONTAINER.get(containerId);
+    if (request.method === "POST" && url.pathname === "/webhook") {
+      if (
+        env.TELEGRAM_SECRET_TOKEN &&
+        request.headers.get("X-Telegram-Bot-Api-Secret-Token") !== env.TELEGRAM_SECRET_TOKEN
+      ) {
+        return new Response("unauthorized", { status: 401 });
+      }
 
-      // Forward the request, stripping the /agent/:id prefix
-      const newPath = url.pathname.replace(/^\/agent\/[^/]+/, "") || "/";
-      const newUrl = new URL(newPath + url.search, url.origin);
+      const rawUpdate = (await request.json()) as unknown;
+      let update;
+      try {
+        update = await pipe(decodeTelegramUpdate(rawUpdate), Effect.runPromise);
+      } catch (error) {
+        console.error("Invalid Telegram update:", error);
+        return ok({ status: "ignored" });
+      }
+      const chatId = getTelegramChatId(update);
+      if (!chatId) {
+        return ok({ status: "ignored" });
+      }
 
-      return container.fetch(new Request(newUrl.toString(), {
-        method: request.method,
-        headers: request.headers,
-        body: request.body,
-      }));
+      const orchestratorId = env.ORCHESTRATOR.idFromName(String(chatId));
+      const orchestrator = env.ORCHESTRATOR.get(orchestratorId);
+      ctx.waitUntil(
+        orchestrator.fetch("https://orchestrator/handle", {
+          method: "POST",
+          headers: jsonHeaders,
+          body: JSON.stringify(update),
+        }),
+      );
+
+      return ok({ status: "accepted" });
     }
 
     return new Response(JSON.stringify({ error: "Not found" }), {
       status: 404,
-      headers: { "Content-Type": "application/json" },
+      headers: jsonHeaders,
     });
   },
 };

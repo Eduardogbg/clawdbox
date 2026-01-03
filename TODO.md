@@ -36,12 +36,18 @@
 ## Current Session: 005 TG Webhook Takopi Port
 
 ### In Progress
-- [ ] Review takopi UX + exec flow for porting
-- [ ] Decide on webhook Worker + DO + container responsibilities
-- [ ] Draft TS+Effect module boundaries and data schemas
+- [ ] Confirm Telegram chat interaction on dev webhook (user message → Codex reply)
 
 ### Completed
 - [x] Document Cloudflare compute options for Telegram polling + recommendation
+- [x] Replace legacy takopi/operator/telegram packages with new agent-worker + agent-container
+- [x] Implement Telegram webhook worker + orchestrator DO (Effect-based)
+- [x] Implement container runner (codex exec streaming + progress updates)
+- [x] Update IaC/dev deploy scripts and tests to target the new worker/container
+- [x] Refresh docs/architecture with the webhook refactor decisions
+- [x] Fix dev wrangler config to override worker name (avoid container app collisions)
+- [x] Adopt existing D1 database in dev env deploys
+- [x] Deploy dev env (dev-mjyuxx7u) and set Telegram webhook
 
 ## Current Session: Post-Ralph Cleanup
 
@@ -150,10 +156,8 @@
 ```
 packages/
 ├── iac/                    # Infrastructure as Code (40 tests)
-├── operator/               # Operator Worker + Durable Object
-├── agent-container/        # Claude Agent Container (43 tests)
-├── agent-worker/           # Worker with Container DO (28 tests)
-└── telegram-webhook/       # Telegram Bot Worker (45 tests)
+├── agent-container/        # Codex runner container
+└── agent-worker/           # Telegram webhook worker + DOs
 ```
 
 ## Deployed Resources
@@ -219,39 +223,9 @@ packages/
 CLOUDFLARE_API_TOKEN=xxx      # API token with account permissions
 CLOUDFLARE_ACCOUNT_ID=3a16620c57b98731f762586aeed4f25c
 TELEGRAM_BOT_TOKEN=xxx        # From @BotFather
-TELEGRAM_CHAT_ID=xxx          # From telegram.json (forum/chat ID)
-TAKOPI_BOT_TOKEN=xxx          # Takopi bot token
-TAKOPI_CHAT_ID=xxx            # Takopi chat ID
-OPENAI_API_KEY=xxx            # For Codex CLI
-ANTHROPIC_API_KEY=xxx         # For agent containers
-GITHUB_PAT=xxx                # For private repo access
+TELEGRAM_SECRET_TOKEN=xxx     # Optional webhook secret
+OPENAI_API_KEY=xxx            # Codex API key
+CODEX_ARGS=xxx                # Optional codex exec args
+CONTAINER_REPO_URL=xxx        # Optional repo clone URL
+CONTAINER_REPO_BRANCH=main    # Optional repo branch
 ```
-
-## API Endpoints (Operator)
-
-### Tasks
-- `POST /tasks` - Create task
-- `GET /tasks?status=<status>` - List tasks
-- `GET /tasks/:id` - Get task
-- `PATCH /tasks/:id/status` - Update task status
-- `POST /tasks/:id/spawn` - Spawn agent for task
-- `GET /tasks/:id/permissions` - Get pending permissions
-
-### Sessions
-- `POST /sessions` - Create session
-- `GET /sessions/:id` - Get session
-
-### Permissions
-- `POST /permissions` - Create permission (async)
-- `POST /permission` - Create + wait for resolution (sync, long-polling)
-- `GET /permissions/:id` - Get permission
-- `POST /permissions/:id/resolve` - Approve/deny permission
-
-### Agent Callbacks
-- `POST /session` - Report Claude session ID
-- `POST /complete` - Report task completion
-- `POST /error` - Report task error
-- `POST /stream` - Stream message to operator
-
-### Container
-- `POST /container-stopped` - Container stopped callback
