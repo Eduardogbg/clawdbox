@@ -21,6 +21,32 @@ type RunRequest = S.Schema.Type<typeof RunRequestSchema>;
 
 const jsonHeaders = { "Content-Type": "application/json" };
 
+const ensureApiKey = (): void => {
+  const bunEnv = Bun.env;
+  const codexKey = process.env.CODEX_API_KEY ?? bunEnv.CODEX_API_KEY;
+  const openaiKey = process.env.OPENAI_API_KEY ?? bunEnv.OPENAI_API_KEY;
+  if (!openaiKey && codexKey) {
+    process.env.OPENAI_API_KEY = codexKey;
+  }
+  if (!codexKey && openaiKey) {
+    process.env.CODEX_API_KEY = openaiKey;
+  }
+};
+
+const buildEnvDebug = () => {
+  const bunEnv = Bun.env;
+  return {
+    has_openai_key: Boolean(process.env.OPENAI_API_KEY),
+    has_openai_key_bun: Boolean(bunEnv.OPENAI_API_KEY),
+    has_codex_key: Boolean(process.env.CODEX_API_KEY),
+    has_codex_key_bun: Boolean(bunEnv.CODEX_API_KEY),
+    has_codex_profile: Boolean(process.env.CODEX_PROFILE),
+    has_codex_profile_bun: Boolean(bunEnv.CODEX_PROFILE),
+    has_codex_args: Boolean(process.env.CODEX_ARGS),
+    has_codex_args_bun: Boolean(bunEnv.CODEX_ARGS),
+  };
+};
+
 const splitArgs = (input: string): string[] => {
   const args: string[] = [];
   let current = "";
@@ -65,42 +91,8 @@ const splitArgs = (input: string): string[] => {
   return args;
 };
 
-const isWritableStream = (value: unknown): value is WritableStream<Uint8Array> =>
-  typeof (value as WritableStream<Uint8Array>)?.getWriter === "function";
-
-const isNodeWritable = (
-  value: unknown,
-): value is {
-  write: (chunk: string, cb?: (error?: Error | null) => void) => void;
-  end?: (cb?: () => void) => void;
-} => typeof (value as { write?: unknown }).write === "function";
-
-const writePrompt = async (stdin: unknown, prompt: string): Promise<void> => {
-  if (!stdin) {
-    throw new Error("codex stdin is not available");
-  }
-  const text = prompt.endsWith("\n") ? prompt : `${prompt}\n`;
-  if (isWritableStream(stdin)) {
-    const writer = stdin.getWriter();
-    await writer.write(new TextEncoder().encode(text));
-    await writer.close();
-    return;
-  }
-  if (isNodeWritable(stdin)) {
-    await new Promise<void>((resolve, reject) => {
-      stdin.write(text, (error) => {
-        if (error) return reject(error);
-        if (stdin.end) {
-          stdin.end(() => resolve());
-        } else {
-          resolve();
-        }
-      });
-    });
-    return;
-  }
-  throw new Error("unsupported stdin interface");
-};
+const isReadableStream = (value: unknown): value is ReadableStream<Uint8Array> =>
+  typeof (value as ReadableStream<Uint8Array>)?.getReader === "function";
 
 const collectStderrTail = async (stream: ReadableStream<Uint8Array> | null): Promise<string> => {
   if (!stream) return "";
@@ -119,18 +111,30 @@ const collectStderrTail = async (stream: ReadableStream<Uint8Array> | null): Pro
   return buffer.trim();
 };
 
+const normalizeCodexArgs = (raw: string | undefined): string[] => {
+  if (!raw) return [];
+  const trimmed = raw.trim();
+  if (
+    (trimmed.startsWith("\"") && trimmed.endsWith("\"")) ||
+    (trimmed.startsWith("'") && trimmed.endsWith("'"))
+  ) {
+    return splitArgs(trimmed.slice(1, -1));
+  }
+  return splitArgs(trimmed);
+};
+
 const buildCodexArgs = (request: RunRequest): string[] => {
-  const extra = process.env.CODEX_ARGS ? splitArgs(process.env.CODEX_ARGS) : [];
+  const extra = normalizeCodexArgs(process.env.CODEX_ARGS);
   const profile = process.env.CODEX_PROFILE;
   const args = ["codex"];
   if (profile) {
     args.push("--profile", profile);
   }
-  args.push(...extra, "exec", "--json");
+  args.push("exec", "--json", ...extra);
   if (request.sessionId) {
-    args.push("resume", request.sessionId, "-");
+    args.push("resume", request.sessionId, request.prompt);
   } else {
-    args.push("-");
+    args.push(request.prompt);
   }
   return args;
 };
@@ -160,7 +164,17 @@ let repoPromise: Promise<void> | null = null;
 
 const ensureRepo = async (workdir: string): Promise<void> => {
   const repoUrl = process.env.REPO_URL;
-  if (!repoUrl) return;
+  if (!repoUrl) {
+    const gitDir = path.join(workdir, ".git");
+    try {
+      await fs.stat(gitDir);
+      return;
+    } catch {
+      await fs.mkdir(workdir, { recursive: true });
+      await runCommand(["git", "init"], workdir);
+      return;
+    }
+  }
   if (repoPromise) {
     await repoPromise;
     return;
@@ -184,48 +198,105 @@ const ensureRepo = async (workdir: string): Promise<void> => {
   await repoPromise;
 };
 
-const runCodex = async (request: RunRequest): Promise<Response> => {
+const runCodex = (request: RunRequest): Response => {
+  ensureApiKey();
   const cmd = buildCodexArgs(request);
   const cwd = request.workdir ?? process.env.CODEX_WORKDIR ?? "/workspace/repo";
-  await ensureRepo(cwd);
-  const proc = Bun.spawn({
-    cmd,
+  console.log("[codex-container] run", {
     cwd,
-    stdin: "pipe",
-    stdout: "pipe",
-    stderr: "pipe",
-    env: process.env,
+    sessionId: request.sessionId ?? null,
+    promptSize: request.prompt.length,
+    args: cmd.slice(1),
   });
-
-  await writePrompt(proc.stdin, request.prompt);
-
-  const stderrPromise = collectStderrTail(proc.stderr);
   const encoder = new TextEncoder();
+  let proc: ReturnType<typeof Bun.spawn> | null = null;
 
   const stream = new ReadableStream<Uint8Array>({
     start(controller) {
-      const pump = async () => {
-        if (proc.stdout) {
-          const reader = proc.stdout.getReader();
-          while (true) {
-            const { done, value } = await reader.read();
-            if (done) break;
-            if (value) controller.enqueue(value);
-          }
+      const emit = (event: Record<string, unknown>) => {
+        try {
+          controller.enqueue(encoder.encode(`${JSON.stringify(event)}\n`));
+        } catch {
+          // ignore enqueue errors when stream is closed
         }
-        const exitCode = await proc.exited;
-        const stderr = await stderrPromise;
-        if (exitCode !== 0) {
+      };
+      const pump = async () => {
+        ensureApiKey();
+        emit({ type: "run.started" });
+        emit({
+          type: "debug.env",
+          ...buildEnvDebug(),
+        });
+
+        try {
+          emit({ type: "debug.ensure_repo.start" });
+          await ensureRepo(cwd);
+          emit({ type: "debug.ensure_repo.done" });
+          proc = Bun.spawn({
+            cmd,
+            cwd,
+            stdin: "ignore",
+            stdout: "pipe",
+            stderr: "pipe",
+            env: process.env,
+          });
+          emit({ type: "debug.spawned" });
+          emit({ type: "debug.prompt_arg" });
+
+          const stderrPromise = collectStderrTail(
+            isReadableStream(proc.stderr) ? proc.stderr : null,
+          );
+
+          if (isReadableStream(proc.stdout)) {
+            const reader = proc.stdout.getReader();
+            let sawOutput = false;
+            while (true) {
+              const { done, value } = await reader.read();
+              if (done) break;
+              if (value) {
+                if (!sawOutput) {
+                  sawOutput = true;
+                  emit({ type: "debug.stdout_first_chunk" });
+                }
+                controller.enqueue(value);
+              }
+            }
+          }
+
+          const exitCode = await proc.exited;
+          const stderr = await stderrPromise;
+          emit({ type: "debug.exit", exit_code: exitCode });
+          console.log("[codex-container] exit", {
+            exitCode,
+            stderrSize: stderr.length,
+          });
+          if (exitCode !== 0) {
+            const payload = JSON.stringify({
+              type: "exec.failed",
+              exit_code: exitCode,
+              stderr: stderr || "codex exec failed",
+            });
+            controller.enqueue(encoder.encode(`${payload}\n`));
+          }
+        } catch (error) {
+          const message = error instanceof Error ? error.message : "codex exec failed";
+          console.error("[codex-container] run error", { error: message });
           const payload = JSON.stringify({
             type: "exec.failed",
-            exit_code: exitCode,
-            stderr: stderr || "codex exec failed",
+            exit_code: 1,
+            stderr: message,
           });
           controller.enqueue(encoder.encode(`${payload}\n`));
+        } finally {
+          controller.close();
         }
-        controller.close();
       };
       pump().catch((error) => controller.error(error));
+    },
+    cancel() {
+      if (proc) {
+        proc.kill();
+      }
     },
   });
 
@@ -238,6 +309,10 @@ const handler = async (request: Request): Promise<Response> => {
   const url = new URL(request.url);
   if (request.method === "GET" && url.pathname === "/health") {
     return new Response(JSON.stringify({ status: "ok" }), { headers: jsonHeaders });
+  }
+  if (request.method === "GET" && url.pathname === "/debug/env") {
+    ensureApiKey();
+    return new Response(JSON.stringify(buildEnvDebug()), { headers: jsonHeaders });
   }
   if (request.method === "POST" && url.pathname === "/run") {
     const body = await request.json();
@@ -265,7 +340,8 @@ const port = Number(process.env.PORT ?? "8080");
 
 Bun.serve({
   port,
+  hostname: "0.0.0.0",
   fetch: handler,
 });
 
-console.log(`[codex-container] listening on ${port}`);
+console.log(`[codex-container] listening on 0.0.0.0:${port}`);

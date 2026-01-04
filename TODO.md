@@ -36,7 +36,16 @@
 ## Current Session: 005 TG Webhook Takopi Port
 
 ### In Progress
-- [ ] Confirm Telegram chat interaction on dev webhook (user message → Codex reply)
+- [x] Confirm Telegram chat interaction on dev webhook (user message → Codex reply)
+- [x] Add /debug/container/ping endpoint for live container health checks
+- [x] Normalize CODEX_ARGS parsing + move exec args after `codex exec`
+- [x] Add container readiness retries to avoid 10.0.0.1:8080 not listening errors
+- [x] Add orchestrator run debug state (last event/error/container response)
+- [x] Emit container debug events (spawn/prompt/stdout/exit) for stuck runs
+- [x] Pass prompt as codex exec argument to avoid stdin hangs in containers
+- [x] Add --skip-git-repo-check to CODEX_ARGS to avoid repo trust errors in container
+- [x] Initialize a git repo in /workspace/repo when no repo URL is provided
+- [x] Emit debug.env to confirm API key presence inside container
 
 ### Completed
 - [x] Document Cloudflare compute options for Telegram polling + recommendation
@@ -48,6 +57,13 @@
 - [x] Fix dev wrangler config to override worker name (avoid container app collisions)
 - [x] Adopt existing D1 database in dev env deploys
 - [x] Deploy dev env (dev-mjyuxx7u) and set Telegram webhook
+- [x] Add debug endpoints for orchestrator/container and stale-run recovery logic
+- [x] Add run start/idle/max timeouts + debug abort to avoid stuck processing
+- [x] Stream a run-start marker from the container to avoid run-start timeouts
+- [x] Bind container HTTP server to 0.0.0.0 to satisfy Cloudflare container proxy
+- [x] Add worker/container env debug endpoints and DO env snapshots
+- [x] Bridge Bun.env to process.env for Codex API key detection
+- [x] Register Telegram bot commands (/new, /help) during dev deploy
 
 ## Current Session: Post-Ralph Cleanup
 

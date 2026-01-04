@@ -39,6 +39,7 @@ export interface SendMessageParams {
   chat_id: number | string;
   text: string;
   reply_to_message_id?: number;
+  allow_sending_without_reply?: boolean;
   disable_notification?: boolean;
 }
 

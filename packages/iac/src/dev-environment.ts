@@ -86,6 +86,9 @@ const DevEnvSchema = S.Struct({
   CONTAINER_REPO_BRANCH: S.optional(S.String),
   MAX_QUEUE_SIZE: S.optional(S.String),
   PROGRESS_EDIT_MS: S.optional(S.String),
+  RUN_START_TIMEOUT_MS: S.optional(S.String),
+  RUN_IDLE_TIMEOUT_MS: S.optional(S.String),
+  RUN_MAX_MS: S.optional(S.String),
   AGENT_IMAGE: S.optional(S.String),
   AGENT_IMAGE_REPO: S.optional(S.String),
   AGENT_IMAGE_TAG: S.optional(S.String),
@@ -368,6 +371,39 @@ const setWebhook = (botToken: string, url: string, secretToken?: string) =>
     Effect.asVoid,
   );
 
+const setBotCommands = (
+  botToken: string,
+  commands: Array<{ command: string; description: string }>,
+) =>
+  pipe(
+    Effect.tryPromise({
+      try: () =>
+        fetch(`https://api.telegram.org/bot${botToken}/setMyCommands`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ commands }),
+        }),
+      catch: (error) => new Error(`setMyCommands request failed: ${error}`),
+    }),
+    Effect.flatMap((response) =>
+      response.ok
+        ? Effect.succeed(response)
+        : Effect.fail(
+            new Error(`setMyCommands request failed (${response.status})`),
+          ),
+    ),
+    Effect.flatMap((response) =>
+      Effect.tryPromise({
+        try: () => response.json(),
+        catch: (error) => new Error(`setMyCommands response JSON failed: ${error}`),
+      }),
+    ),
+    Effect.tap((payload) =>
+      Effect.logInfo(`Telegram commands response: ${JSON.stringify(payload)}`),
+    ),
+    Effect.asVoid,
+  );
+
 const devSecretsStoreName = "clawdbox-dev-takopi-secrets";
 
 const makeResources = (resourcePrefix: string, env: DevEnv) => {
@@ -424,6 +460,9 @@ const buildVarsArgs = (env: DevEnv): string[] => {
     CONTAINER_REPO_BRANCH: env.CONTAINER_REPO_BRANCH,
     MAX_QUEUE_SIZE: env.MAX_QUEUE_SIZE,
     PROGRESS_EDIT_MS: env.PROGRESS_EDIT_MS,
+    RUN_START_TIMEOUT_MS: env.RUN_START_TIMEOUT_MS,
+    RUN_IDLE_TIMEOUT_MS: env.RUN_IDLE_TIMEOUT_MS,
+    RUN_MAX_MS: env.RUN_MAX_MS,
   };
 
   return Object.entries(vars).flatMap(([key, value]) =>
@@ -493,6 +532,10 @@ const deployDev = Effect.gen(function* () {
 
   yield* Effect.logInfo(`Agent worker URL: ${workerUrl}`);
   yield* setWebhook(env.TELEGRAM_BOT_TOKEN, `${workerUrl}/webhook`, env.TELEGRAM_SECRET_TOKEN);
+  yield* setBotCommands(env.TELEGRAM_BOT_TOKEN, [
+    { command: "new", description: "Start a fresh session" },
+    { command: "help", description: "Show available commands" },
+  ]);
   yield* Effect.logInfo("=== Dev environment ready (webhook set) ===");
 });
 

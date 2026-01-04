@@ -91,6 +91,9 @@ class AgentWorker extends Cloudflare.Worker.serve("AgentWorker", {
     CONTAINER_REPO_BRANCH: process.env.CONTAINER_REPO_BRANCH ?? "",
     MAX_QUEUE_SIZE: process.env.MAX_QUEUE_SIZE ?? "",
     PROGRESS_EDIT_MS: process.env.PROGRESS_EDIT_MS ?? "",
+    RUN_START_TIMEOUT_MS: process.env.RUN_START_TIMEOUT_MS ?? "",
+    RUN_IDLE_TIMEOUT_MS: process.env.RUN_IDLE_TIMEOUT_MS ?? "",
+    RUN_MAX_MS: process.env.RUN_MAX_MS ?? "",
   },
   bindings: $(
     Cloudflare.Container.Bind(AgentContainer),

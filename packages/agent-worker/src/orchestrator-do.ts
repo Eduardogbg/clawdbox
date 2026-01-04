@@ -28,6 +28,19 @@ const SQL = {
       text TEXT NOT NULL,
       created_at INTEGER NOT NULL
     );
+
+    CREATE TABLE IF NOT EXISTS run_debug (
+      id INTEGER PRIMARY KEY CHECK (id = 1),
+      last_message_id INTEGER,
+      last_progress_id INTEGER,
+      last_event_type TEXT,
+      last_event_at INTEGER,
+      last_error TEXT,
+      last_container_error TEXT,
+      last_container_status INTEGER,
+      last_container_detail TEXT
+    );
+    INSERT OR IGNORE INTO run_debug (id) VALUES (1);
   `,
   GET_STATE: `
     SELECT session_id, session_epoch, active_run, updated_at
@@ -58,7 +71,44 @@ const SQL = {
   CLEAR_QUEUE: `
     DELETE FROM message_queue
   `,
+  GET_RUN_DEBUG: `
+    SELECT
+      last_message_id,
+      last_progress_id,
+      last_event_type,
+      last_event_at,
+      last_error,
+      last_container_error,
+      last_container_status,
+      last_container_detail
+    FROM run_debug
+    WHERE id = 1
+  `,
+  UPDATE_RUN_DEBUG: `
+    UPDATE run_debug
+    SET
+      last_message_id = ?,
+      last_progress_id = ?,
+      last_event_type = ?,
+      last_event_at = ?,
+      last_error = ?,
+      last_container_error = ?,
+      last_container_status = ?,
+      last_container_detail = ?
+    WHERE id = 1
+  `,
 };
+
+const ACTIVE_RUN_STALE_MS = 5 * 60 * 1000;
+const DEFAULT_RUN_START_TIMEOUT_MS = 120 * 1000;
+const DEFAULT_RUN_IDLE_TIMEOUT_MS = 5 * 60 * 1000;
+const DEFAULT_RUN_MAX_MS = 30 * 60 * 1000;
+const timeoutSentinel = Symbol("timeout");
+
+const sleep = (ms: number) =>
+  new Promise<typeof timeoutSentinel>((resolve) => {
+    setTimeout(() => resolve(timeoutSentinel), ms);
+  });
 
 const RunRequestSchema = S.Struct({
   prompt: S.String,
@@ -66,11 +116,26 @@ const RunRequestSchema = S.Struct({
   workdir: S.optional(S.String),
 });
 
+const ContainerStateSchema = S.Struct({
+  status: S.Literal("idle", "starting", "running", "stopping", "stopped", "error"),
+  instanceId: S.Union(S.String, S.Null),
+  startedAt: S.Union(S.Number, S.Null),
+  stoppedAt: S.Union(S.Number, S.Null),
+  error: S.Union(S.String, S.Null),
+});
+
 const decodeRunRequest = (input: unknown) =>
   pipe(
     Effect.succeed(input),
     Effect.flatMap(S.decodeUnknown(RunRequestSchema)),
     Effect.mapError((error) => new Error(`Invalid run request: ${error}`)),
+  );
+
+const decodeContainerState = (input: unknown) =>
+  pipe(
+    Effect.succeed(input),
+    Effect.flatMap(S.decodeUnknown(ContainerStateSchema)),
+    Effect.mapError((error) => new Error(`Invalid container state: ${error}`)),
   );
 
 const getQueueCount = (sql: DurableObjectStorage["sql"]): number => {
@@ -95,6 +160,63 @@ const setChatState = (sql: DurableObjectStorage["sql"], state: ChatState): void 
   sql.exec(SQL.UPDATE_STATE, state.sessionId, state.sessionEpoch, state.activeRun, state.updatedAt);
 };
 
+type RunDebug = {
+  lastMessageId: number | null;
+  lastProgressId: number | null;
+  lastEventType: string | null;
+  lastEventAt: number | null;
+  lastError: string | null;
+  lastContainerError: string | null;
+  lastContainerStatus: number | null;
+  lastContainerDetail: string | null;
+};
+
+const defaultRunDebug = (): RunDebug => ({
+  lastMessageId: null,
+  lastProgressId: null,
+  lastEventType: null,
+  lastEventAt: null,
+  lastError: null,
+  lastContainerError: null,
+  lastContainerStatus: null,
+  lastContainerDetail: null,
+});
+
+const getRunDebug = (sql: DurableObjectStorage["sql"]): RunDebug => {
+  const row = sql.exec(SQL.GET_RUN_DEBUG).one();
+  if (!row) return defaultRunDebug();
+  return {
+    lastMessageId: row.last_message_id as number | null,
+    lastProgressId: row.last_progress_id as number | null,
+    lastEventType: row.last_event_type as string | null,
+    lastEventAt: row.last_event_at as number | null,
+    lastError: row.last_error as string | null,
+    lastContainerError: row.last_container_error as string | null,
+    lastContainerStatus: row.last_container_status as number | null,
+    lastContainerDetail: row.last_container_detail as string | null,
+  };
+};
+
+const setRunDebug = (sql: DurableObjectStorage["sql"], debug: RunDebug): void => {
+  sql.exec(
+    SQL.UPDATE_RUN_DEBUG,
+    debug.lastMessageId,
+    debug.lastProgressId,
+    debug.lastEventType,
+    debug.lastEventAt,
+    debug.lastError,
+    debug.lastContainerError,
+    debug.lastContainerStatus,
+    debug.lastContainerDetail,
+  );
+};
+
+const isStaleActiveRun = (state: ChatState): boolean => {
+  if (state.activeRun !== 1) return false;
+  if (state.updatedAt === null) return true;
+  return Date.now() - state.updatedAt > ACTIVE_RUN_STALE_MS;
+};
+
 const dequeueMessage = (sql: DurableObjectStorage["sql"]): QueueItem | null => {
   const row = sql.exec(SQL.DEQUEUE).one();
   if (!row) return null;
@@ -112,6 +234,7 @@ export class OrchestratorDO extends DurableObject<Env> {
   private initialized = false;
   private chatId: number | null = null;
   private processing = false;
+  private currentAbort: AbortController | null = null;
 
   private ensureInitialized(): void {
     if (this.initialized) return;
@@ -123,6 +246,12 @@ export class OrchestratorDO extends DurableObject<Env> {
     this.ensureInitialized();
 
     const url = new URL(request.url);
+    if (request.method === "GET" && url.pathname === "/debug") {
+      return this.handleDebug();
+    }
+    if (request.method === "POST" && url.pathname === "/debug/reset") {
+      return this.handleDebugReset();
+    }
     if (request.method === "POST" && url.pathname === "/handle") {
       const update = await pipe(decodeTelegramUpdate(await request.json()), Effect.runPromise);
       const message = update.message;
@@ -153,6 +282,45 @@ export class OrchestratorDO extends DurableObject<Env> {
     }
 
     return new Response("not found", { status: 404 });
+  }
+
+  private handleDebug(): Response {
+    const state = getChatState(this.ctx.storage.sql);
+    const queueCount = getQueueCount(this.ctx.storage.sql);
+    const runDebug = getRunDebug(this.ctx.storage.sql);
+    return new Response(
+      JSON.stringify({
+        chatId: this.chatId,
+        processing: this.processing,
+        queueCount,
+        state,
+        runDebug,
+      }),
+      { headers: { "Content-Type": "application/json" } },
+    );
+  }
+
+  private handleDebugReset(): Response {
+    const sql = this.ctx.storage.sql;
+    sql.exec(SQL.CLEAR_QUEUE);
+    const state = getChatState(sql);
+    setChatState(sql, {
+      ...state,
+      sessionId: null,
+      activeRun: 0,
+      updatedAt: Date.now(),
+    });
+    setRunDebug(sql, defaultRunDebug());
+    this.abortActiveRun("debug reset");
+    this.processing = false;
+    return this.handleDebug();
+  }
+
+  private abortActiveRun(reason: string): void {
+    if (!this.currentAbort) return;
+    console.warn("[orchestrator] aborting active run", { reason });
+    this.currentAbort.abort(reason);
+    this.currentAbort = null;
   }
 
   private parseCommand(text: string): string | null {
@@ -217,7 +385,35 @@ export class OrchestratorDO extends DurableObject<Env> {
   private async processNext(): Promise<void> {
     const sql = this.ctx.storage.sql;
     const state = getChatState(sql);
-    if (state.activeRun === 1) return;
+    if (state.activeRun === 1) {
+      const containerState = await this.fetchContainerState();
+      const containerStopped =
+        containerState !== null &&
+        containerState.status !== "running" &&
+        containerState.status !== "starting";
+      if (!containerStopped && !isStaleActiveRun(state)) {
+        return;
+      }
+      console.warn("[orchestrator] clearing stale run", {
+        updatedAt: state.updatedAt,
+        containerStatus: containerState?.status ?? "unknown",
+      });
+      this.abortActiveRun("stale run");
+      setChatState(sql, {
+        ...state,
+        activeRun: 0,
+        updatedAt: Date.now(),
+      });
+      if (this.chatId !== null) {
+        try {
+          await this.getContainerStub().fetch("https://container/stop", { method: "POST" });
+        } catch (error) {
+          console.error("[orchestrator] failed to stop stale container", {
+            error: error instanceof Error ? error.message : String(error),
+          });
+        }
+      }
+    }
 
     const item = dequeueMessage(sql);
     if (!item) return;
@@ -247,108 +443,161 @@ export class OrchestratorDO extends DurableObject<Env> {
     const state = getChatState(sql);
     const startEpoch = state.sessionEpoch;
     const prompt = item.text;
+    console.log("[orchestrator] run start", {
+      chatId: this.chatId,
+      messageId: item.messageId,
+      promptSize: prompt.length,
+      hasSession: Boolean(state.sessionId),
+    });
 
     const progressId = await this.sendProgressMessage(item.messageId);
+    this.recordRunStart(item.messageId, progressId);
     if (!progressId) return;
 
-    const container = this.getContainerStub();
     const runRequest: RunRequest = {
       prompt,
       sessionId: state.sessionId ?? undefined,
       workdir: this.env.CONTAINER_WORKDIR,
     };
 
-    const response = await container.fetch("https://container/run", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(runRequest),
-    });
+    const abortController = new AbortController();
+    this.currentAbort = abortController;
 
-    if (!response.ok || !response.body) {
-      const detail = await response.text();
-      await this.editProgress(progressId, `error: ${detail || response.statusText}`);
-      return;
-    }
+    try {
+      const response = await this.fetchContainerRun(runRequest, abortController);
+      console.log("[orchestrator] container response", { status: response.status });
 
-    const renderer = new ExecProgressRenderer();
-    const startedAt = Date.now();
-    let lastEdit = 0;
-    let sessionId = state.sessionId;
-    let lastAnswer = "";
-    let sawAgentMessage = false;
-    let execError: string | null = null;
-
-    const onEvent = async (event: Record<string, unknown>) => {
-      if (event.type === "thread.started" && typeof event.thread_id === "string") {
-        sessionId = event.thread_id;
+      if (!response.ok || !response.body) {
+        const detail = await response.text();
+        this.recordContainerResponse(response.status, detail);
+        console.error("[orchestrator] container error response", {
+          status: response.status,
+          detail: detail.slice(0, 200),
+        });
+        await this.editProgress(
+          progressId,
+          truncateForTelegram(`error: ${detail || response.statusText}`),
+        );
+        return;
       }
 
-      if (event.type === "item.completed") {
-        const itemValue = event.item;
-        if (
-          itemValue &&
-          typeof itemValue === "object" &&
-          typeof (itemValue as Record<string, unknown>).type === "string" &&
-          (itemValue as Record<string, unknown>).type === "agent_message" &&
-          typeof (itemValue as Record<string, unknown>).text === "string"
-        ) {
-          lastAnswer = (itemValue as Record<string, unknown>).text as string;
-          sawAgentMessage = true;
+      const renderer = new ExecProgressRenderer();
+      const startedAt = Date.now();
+      let lastEdit = 0;
+      let sessionId = state.sessionId;
+      let lastAnswer = "";
+      let sawAgentMessage = false;
+      let execError: string | null = null;
+
+      const onEvent = async (event: Record<string, unknown>) => {
+        this.touchActiveRun();
+        if (typeof event.type === "string" && event.type !== "item.updated") {
+          this.recordRunEvent(event.type);
         }
-      }
+        if (event.type === "debug.env") {
+          const hasOpenai = typeof event.has_openai_key === "boolean" ? event.has_openai_key : null;
+          const hasCodex = typeof event.has_codex_key === "boolean" ? event.has_codex_key : null;
+          this.recordRunEventDetail(
+            "debug.env",
+            JSON.stringify({ has_openai_key: hasOpenai, has_codex_key: hasCodex }),
+          );
+        }
+        if (event.type === "thread.started" && typeof event.thread_id === "string") {
+          sessionId = event.thread_id;
+        }
 
-      if (event.type === "exec.failed") {
-        execError = typeof event.stderr === "string" ? event.stderr : "codex exec failed";
-      }
+        if (event.type === "item.completed") {
+          const itemValue = event.item;
+          if (
+            itemValue &&
+            typeof itemValue === "object" &&
+            typeof (itemValue as Record<string, unknown>).type === "string" &&
+            (itemValue as Record<string, unknown>).type === "agent_message" &&
+            typeof (itemValue as Record<string, unknown>).text === "string"
+          ) {
+            lastAnswer = (itemValue as Record<string, unknown>).text as string;
+            sawAgentMessage = true;
+          }
+        }
 
-      if (!renderer.noteEvent(event)) return;
+        if (event.type === "exec.failed") {
+          execError = typeof event.stderr === "string" ? event.stderr : "codex exec failed";
+          this.recordRunError(execError);
+          console.error("[orchestrator] exec failed", {
+            stderr: execError.slice(0, 200),
+          });
+        }
 
-      const now = Date.now();
-      if (now - lastEdit < this.getProgressEditMs()) return;
-      lastEdit = now;
+        if (!renderer.noteEvent(event)) return;
 
-      const elapsed = (now - startedAt) / 1000;
-      const rendered = renderer.renderProgress(elapsed);
-      const progress = sessionId ? withResumeLine(rendered, sessionId) : rendered;
-      const truncated = truncateForTelegram(progress);
-      await this.editProgress(progressId, truncated);
-    };
+        const now = Date.now();
+        if (now - lastEdit < this.getProgressEditMs()) return;
+        lastEdit = now;
 
-    await this.consumeJsonlStream(response.body, onEvent);
+        const elapsed = (now - startedAt) / 1000;
+        const rendered = renderer.renderProgress(elapsed);
+        const progress = sessionId ? withResumeLine(rendered, sessionId) : rendered;
+        const truncated = truncateForTelegram(progress);
+        await this.editProgress(progressId, truncated);
+      };
 
-    const elapsed = (Date.now() - startedAt) / 1000;
-    const status = execError ? "error" : "done";
-    const answer = execError
-      ? `error: ${execError}`
-      : sawAgentMessage
-        ? lastAnswer
-        : "(no response)";
-    const finalText = withResumeLine(
-      renderer.renderFinal(elapsed, answer, status),
-      sessionId ?? null,
-    );
-    const needsNewMessage = finalText.length > TELEGRAM_LIMIT;
-    const truncated = truncateForTelegram(finalText);
-
-    await this.finishProgress(progressId, truncated, needsNewMessage);
-
-    const latestState = getChatState(sql);
-    if (latestState.sessionEpoch === startEpoch) {
-      setChatState(sql, {
-        ...latestState,
-        sessionId: sessionId ?? latestState.sessionId,
-        updatedAt: Date.now(),
+      await this.consumeJsonlStream(response.body, onEvent, {
+        signal: abortController.signal,
+        idleTimeoutMs: this.getRunIdleTimeoutMs(),
+        maxDurationMs: this.getRunMaxMs(),
       });
+
+      const elapsed = (Date.now() - startedAt) / 1000;
+      const status = execError ? "error" : "done";
+      const answer = execError
+        ? `error: ${execError}`
+        : sawAgentMessage
+          ? lastAnswer
+          : "(no response)";
+      console.log("[orchestrator] run finished", {
+        status,
+        elapsed,
+        sawAgentMessage,
+        sessionId: sessionId ?? null,
+      });
+      const finalText = withResumeLine(
+        renderer.renderFinal(elapsed, answer, status),
+        sessionId ?? null,
+      );
+      const needsNewMessage = finalText.length > TELEGRAM_LIMIT;
+      const truncated = truncateForTelegram(finalText);
+
+      await this.finishProgress(progressId, truncated, needsNewMessage);
+
+      const latestState = getChatState(sql);
+      if (latestState.sessionEpoch === startEpoch) {
+        setChatState(sql, {
+          ...latestState,
+          sessionId: sessionId ?? latestState.sessionId,
+          updatedAt: Date.now(),
+        });
+      }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "codex run failed";
+      this.recordRunError(message);
+      console.error("[orchestrator] run error", { error: message });
+      await this.editProgress(progressId, truncateForTelegram(`error: ${message}`));
+    } finally {
+      if (this.currentAbort === abortController) {
+        this.currentAbort = null;
+      }
     }
   }
 
   private async consumeJsonlStream(
     stream: ReadableStream<Uint8Array>,
     onEvent: (event: Record<string, unknown>) => Promise<void>,
+    options: { signal: AbortSignal; idleTimeoutMs: number; maxDurationMs: number },
   ): Promise<void> {
     const reader = stream.getReader();
     const decoder = new TextDecoder();
     let buffer = "";
+    const startedAt = Date.now();
 
     const flushLines = async (text: string) => {
       const lines = text.split("\n");
@@ -369,9 +618,33 @@ export class OrchestratorDO extends DurableObject<Env> {
     };
 
     while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      buffer += decoder.decode(value, { stream: true });
+      if (options.signal.aborted) {
+        await reader.cancel();
+        const reason = options.signal.reason;
+        const message =
+          typeof reason === "string" && reason.trim().length > 0
+            ? reason
+            : "codex run aborted";
+        throw new Error(message);
+      }
+
+      const elapsed = Date.now() - startedAt;
+      const remaining = options.maxDurationMs - elapsed;
+      if (remaining <= 0) {
+        await reader.cancel();
+        throw new Error(`codex run exceeded ${options.maxDurationMs}ms`);
+      }
+
+      const timeoutMs = Math.min(options.idleTimeoutMs, remaining);
+      const result = await Promise.race([reader.read(), sleep(timeoutMs)]);
+      if (result === timeoutSentinel) {
+        await reader.cancel();
+        throw new Error(`codex stream idle for ${timeoutMs}ms`);
+      }
+      if (result.done) break;
+      if (!result.value) continue;
+      buffer += decoder.decode(result.value, { stream: true });
+      this.touchActiveRun();
       await flushLines(buffer);
     }
 
@@ -399,6 +672,7 @@ export class OrchestratorDO extends DurableObject<Env> {
 
   private async editProgress(messageId: number, text: string): Promise<void> {
     await this.sendTelegramEdit({ messageId, text });
+    this.touchActiveRun();
   }
 
   private async finishProgress(
@@ -422,44 +696,142 @@ export class OrchestratorDO extends DurableObject<Env> {
   }): Promise<{ message_id: number } | null> {
     const chatId = this.chatId;
     if (chatId === null) return null;
-    const telegram = createTelegramClient(this.env.TELEGRAM_BOT_TOKEN);
-    const result = await pipe(
-      telegram.sendMessage({
-        chat_id: chatId,
-        text: input.text,
-        reply_to_message_id: input.replyTo,
-        disable_notification: input.silent,
-      }),
-      Effect.runPromise,
-    );
-    return result ?? null;
+    try {
+      const telegram = createTelegramClient(this.env.TELEGRAM_BOT_TOKEN);
+      const result = await pipe(
+        telegram.sendMessage({
+          chat_id: chatId,
+          text: input.text,
+          reply_to_message_id: input.replyTo,
+          allow_sending_without_reply: input.replyTo ? true : undefined,
+          disable_notification: input.silent,
+        }),
+        Effect.runPromise,
+      );
+      return result ?? null;
+    } catch (error) {
+      console.error("[orchestrator] telegram send failed", {
+        chatId,
+        replyTo: input.replyTo ?? null,
+        error: error instanceof Error ? error.message : String(error),
+      });
+      throw error;
+    }
   }
 
   private async sendTelegramEdit(input: { messageId: number; text: string }): Promise<void> {
     const chatId = this.chatId;
     if (chatId === null) return;
-    const telegram = createTelegramClient(this.env.TELEGRAM_BOT_TOKEN);
-    await pipe(
-      telegram.editMessageText({
-        chat_id: chatId,
-        message_id: input.messageId,
-        text: input.text,
-      }),
-      Effect.runPromise,
-    );
+    try {
+      const telegram = createTelegramClient(this.env.TELEGRAM_BOT_TOKEN);
+      await pipe(
+        telegram.editMessageText({
+          chat_id: chatId,
+          message_id: input.messageId,
+          text: input.text,
+        }),
+        Effect.runPromise,
+      );
+    } catch (error) {
+      console.error("[orchestrator] telegram edit failed", {
+        chatId,
+        messageId: input.messageId,
+        error: error instanceof Error ? error.message : String(error),
+      });
+      throw error;
+    }
   }
 
   private async deleteTelegramMessage(messageId: number): Promise<void> {
     const chatId = this.chatId;
     if (chatId === null) return;
-    const telegram = createTelegramClient(this.env.TELEGRAM_BOT_TOKEN);
-    await pipe(telegram.deleteMessage(chatId, messageId), Effect.runPromise);
+    try {
+      const telegram = createTelegramClient(this.env.TELEGRAM_BOT_TOKEN);
+      await pipe(telegram.deleteMessage(chatId, messageId), Effect.runPromise);
+    } catch (error) {
+      console.error("[orchestrator] telegram delete failed", {
+        chatId,
+        messageId,
+        error: error instanceof Error ? error.message : String(error),
+      });
+      throw error;
+    }
   }
 
   private getContainerStub() {
     const chatId = this.chatId ?? 0;
     const containerId = this.env.AGENT_CONTAINER.idFromName(String(chatId));
     return this.env.AGENT_CONTAINER.get(containerId);
+  }
+
+  private parsePositiveMs(raw: string | undefined, fallback: number): number {
+    const parsed = raw ? Number(raw) : fallback;
+    return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
+  }
+
+  private getRunStartTimeoutMs(): number {
+    return this.parsePositiveMs(this.env.RUN_START_TIMEOUT_MS, DEFAULT_RUN_START_TIMEOUT_MS);
+  }
+
+  private getRunIdleTimeoutMs(): number {
+    return this.parsePositiveMs(this.env.RUN_IDLE_TIMEOUT_MS, DEFAULT_RUN_IDLE_TIMEOUT_MS);
+  }
+
+  private getRunMaxMs(): number {
+    return this.parsePositiveMs(this.env.RUN_MAX_MS, DEFAULT_RUN_MAX_MS);
+  }
+
+  private async fetchContainerRun(
+    runRequest: RunRequest,
+    controller: AbortController,
+  ): Promise<Response> {
+    const timeoutMs = this.getRunStartTimeoutMs();
+    const timer = setTimeout(
+      () => controller.abort(`container run start timed out after ${timeoutMs}ms`),
+      timeoutMs,
+    );
+    try {
+      return await this.getContainerStub().fetch("https://container/run", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(runRequest),
+        signal: controller.signal,
+      });
+    } catch (error) {
+      if (controller.signal.aborted) {
+        const reason = controller.signal.reason;
+        const message =
+          typeof reason === "string" && reason.trim().length > 0
+            ? reason
+            : "container run aborted";
+        throw new Error(message);
+      }
+      throw error;
+    } finally {
+      clearTimeout(timer);
+    }
+  }
+
+  private async fetchContainerState(): Promise<S.Schema.Type<typeof ContainerStateSchema> | null> {
+    if (this.chatId === null) return null;
+    try {
+      const response = await this.getContainerStub().fetch("https://container/status");
+      if (!response.ok) return null;
+      const payload = (await response.json()) as unknown;
+      return await pipe(decodeContainerState(payload), Effect.runPromise);
+    } catch (error) {
+      console.error("[orchestrator] failed to fetch container status", {
+        error: error instanceof Error ? error.message : String(error),
+      });
+      return null;
+    }
+  }
+
+  private touchActiveRun(): void {
+    const sql = this.ctx.storage.sql;
+    const state = getChatState(sql);
+    if (state.activeRun !== 1) return;
+    setChatState(sql, { ...state, updatedAt: Date.now() });
   }
 
   private getMaxQueueSize(): number {
@@ -472,5 +844,65 @@ export class OrchestratorDO extends DurableObject<Env> {
     const raw = this.env.PROGRESS_EDIT_MS;
     const parsed = raw ? Number(raw) : 2000;
     return Number.isFinite(parsed) && parsed > 0 ? parsed : 2000;
+  }
+
+  private recordRunStart(messageId: number, progressId: number | null): void {
+    const sql = this.ctx.storage.sql;
+    const debug = getRunDebug(sql);
+    setRunDebug(sql, {
+      ...debug,
+      lastMessageId: messageId,
+      lastProgressId: progressId,
+      lastEventType: "run.start",
+      lastEventAt: Date.now(),
+      lastError: null,
+      lastContainerError: null,
+      lastContainerStatus: null,
+      lastContainerDetail: null,
+    });
+  }
+
+  private recordRunEvent(eventType: string): void {
+    const sql = this.ctx.storage.sql;
+    const debug = getRunDebug(sql);
+    setRunDebug(sql, {
+      ...debug,
+      lastEventType: eventType,
+      lastEventAt: Date.now(),
+    });
+  }
+
+  private recordRunEventDetail(eventType: string, detail: string): void {
+    const sql = this.ctx.storage.sql;
+    const debug = getRunDebug(sql);
+    setRunDebug(sql, {
+      ...debug,
+      lastEventType: eventType,
+      lastEventAt: Date.now(),
+      lastContainerDetail: detail.slice(0, 500),
+    });
+  }
+
+  private recordRunError(message: string): void {
+    const sql = this.ctx.storage.sql;
+    const debug = getRunDebug(sql);
+    setRunDebug(sql, {
+      ...debug,
+      lastError: message,
+      lastEventType: "run.error",
+      lastEventAt: Date.now(),
+    });
+  }
+
+  private recordContainerResponse(status: number, detail: string): void {
+    const sql = this.ctx.storage.sql;
+    const debug = getRunDebug(sql);
+    setRunDebug(sql, {
+      ...debug,
+      lastContainerStatus: status,
+      lastContainerDetail: detail.slice(0, 500),
+      lastEventType: "container.response",
+      lastEventAt: Date.now(),
+    });
   }
 }

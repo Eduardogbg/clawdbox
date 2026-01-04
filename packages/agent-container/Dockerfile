@@ -22,7 +22,7 @@ RUN bun install --production
 COPY src/ ./src/
 
 # Default Codex settings
-ENV CODEX_ARGS="--dangerously-bypass-approvals-and-sandbox -c notify=[]"
+ENV CODEX_ARGS="--dangerously-bypass-approvals-and-sandbox -c notify=[] --skip-git-repo-check"
 ENV CODEX_WORKDIR="/workspace/repo"
 
 RUN mkdir -p /workspace/repo

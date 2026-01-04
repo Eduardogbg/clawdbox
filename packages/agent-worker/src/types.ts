@@ -19,6 +19,9 @@ export interface Env {
   CONTAINER_REPO_BRANCH?: string;
   MAX_QUEUE_SIZE?: string;
   PROGRESS_EDIT_MS?: string;
+  RUN_START_TIMEOUT_MS?: string;
+  RUN_IDLE_TIMEOUT_MS?: string;
+  RUN_MAX_MS?: string;
   ORCHESTRATOR: DurableObjectNamespace<OrchestratorDO>;
   AGENT_CONTAINER: DurableObjectNamespace<AgentContainerDO>;
 }
