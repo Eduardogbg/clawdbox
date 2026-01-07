@@ -24,6 +24,7 @@ export interface TelegramChat {
 
 export interface TelegramMessage {
   message_id: number;
+  message_thread_id?: number;
   text?: string;
   chat: TelegramChat;
   from?: TelegramUser;
@@ -38,6 +39,7 @@ export interface TelegramUpdate {
 export interface SendMessageParams {
   chat_id: number | string;
   text: string;
+  message_thread_id?: number;
   reply_to_message_id?: number;
   allow_sending_without_reply?: boolean;
   disable_notification?: boolean;
@@ -47,6 +49,22 @@ export interface EditMessageParams {
   chat_id: number | string;
   message_id: number;
   text: string;
+}
+
+export interface EditForumTopicParams {
+  chat_id: number | string;
+  message_thread_id: number;
+  name: string;
+}
+
+export interface CreateForumTopicParams {
+  chat_id: number | string;
+  name: string;
+}
+
+export interface ForumTopic {
+  message_thread_id: number;
+  name: string;
 }
 
 export interface TelegramMessageResult {
@@ -72,6 +90,7 @@ const TelegramChatSchema = S.Struct({
 
 const TelegramMessageSchema: S.Schema<TelegramMessage> = S.Struct({
   message_id: S.Number,
+  message_thread_id: S.optional(S.Number),
   text: S.optional(S.String),
   chat: TelegramChatSchema,
   from: S.optional(TelegramUserSchema),
@@ -95,6 +114,14 @@ export const getTelegramChatId = (update: TelegramUpdate): number | null => {
   return typeof chatId === "number" ? chatId : null;
 };
 
+export const getTelegramThreadId = (update: TelegramUpdate): number | null => {
+  const threadId = update.message?.message_thread_id;
+  return typeof threadId === "number" ? threadId : null;
+};
+
+export const buildTelegramChatKey = (chatId: number, threadId: number | null): string =>
+  threadId === null ? String(chatId) : `${chatId}:${threadId}`;
+
 const TELEGRAM_API_BASE = "https://api.telegram.org";
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
@@ -115,6 +142,8 @@ export interface TelegramClient {
   editMessageText: (params: EditMessageParams) => Effect.Effect<TelegramMessageResult, Error>;
   deleteMessage: (chatId: number | string, messageId: number) => Effect.Effect<void, Error>;
   setWebhook: (url: string, secretToken?: string) => Effect.Effect<void, Error>;
+  editForumTopic: (params: EditForumTopicParams) => Effect.Effect<ForumTopic, Error>;
+  createForumTopic: (params: CreateForumTopicParams) => Effect.Effect<ForumTopic, Error>;
 }
 
 export const createTelegramClient = (botToken: string): TelegramClient => {
@@ -155,5 +184,18 @@ export const createTelegramClient = (botToken: string): TelegramClient => {
       Effect.asVoid,
     );
 
-  return { sendMessage, editMessageText, deleteMessage, setWebhook };
+  const editForumTopic = (params: EditForumTopicParams) =>
+    postJson<ForumTopic>("editForumTopic", params);
+
+  const createForumTopic = (params: CreateForumTopicParams) =>
+    postJson<ForumTopic>("createForumTopic", params);
+
+  return {
+    sendMessage,
+    editMessageText,
+    deleteMessage,
+    setWebhook,
+    editForumTopic,
+    createForumTopic,
+  };
 };

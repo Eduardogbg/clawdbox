@@ -3,6 +3,7 @@
  */
 import type { AgentContainerDO } from "./agent-container-do.js";
 import type { OrchestratorDO } from "./orchestrator-do.js";
+import type { ManagerDO } from "./manager-do.js";
 
 /**
  * Environment bindings for the Worker
@@ -14,6 +15,7 @@ export interface Env {
   OPENAI_API_KEY?: string;
   CODEX_ARGS?: string;
   CODEX_PROFILE?: string;
+  MANAGER_CLI_TOKEN?: string;
   CONTAINER_WORKDIR?: string;
   CONTAINER_REPO_URL?: string;
   CONTAINER_REPO_BRANCH?: string;
@@ -23,6 +25,7 @@ export interface Env {
   RUN_IDLE_TIMEOUT_MS?: string;
   RUN_MAX_MS?: string;
   ORCHESTRATOR: DurableObjectNamespace<OrchestratorDO>;
+  MANAGER: DurableObjectNamespace<ManagerDO>;
   AGENT_CONTAINER: DurableObjectNamespace<AgentContainerDO>;
 }
 
@@ -58,6 +61,7 @@ export interface ChatState {
 export interface QueueItem {
   id: number;
   messageId: number;
+  threadId: number | null;
   text: string;
   createdAt: number;
 }

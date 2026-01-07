@@ -7,11 +7,17 @@
 import * as Effect from "effect/Effect";
 import { pipe } from "effect/Function";
 import { AgentContainerDO } from "./agent-container-do.js";
+import { ManagerDO } from "./manager-do.js";
 import { OrchestratorDO } from "./orchestrator-do.js";
-import { decodeTelegramUpdate, getTelegramChatId } from "./telegram.js";
+import {
+  buildTelegramChatKey,
+  decodeTelegramUpdate,
+  getTelegramChatId,
+  getTelegramThreadId,
+} from "./telegram.js";
 import type { Env } from "./types.js";
 
-export { AgentContainerDO, OrchestratorDO };
+export { AgentContainerDO, ManagerDO, OrchestratorDO };
 
 const jsonHeaders = { "Content-Type": "application/json" };
 
@@ -38,6 +44,16 @@ const getChatIdParam = (url: URL): string | null => {
   return raw && raw.trim().length > 0 ? raw.trim() : null;
 };
 
+const getThreadIdParam = (url: URL): number | null => {
+  const raw = url.searchParams.get("thread_id");
+  if (!raw) return null;
+  const parsed = Number(raw);
+  return Number.isFinite(parsed) ? parsed : null;
+};
+
+const buildKey = (chatId: string, threadId: number | null) =>
+  buildTelegramChatKey(Number(chatId), threadId);
+
 export default {
   async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
     const url = new URL(request.url);
@@ -54,24 +70,34 @@ export default {
       return ok(buildEnvDebug(env));
     }
 
+    if (request.method === "GET" && url.pathname === "/debug/manager") {
+      const chatId = getChatIdParam(url);
+      if (!chatId) return badRequest("chat_id is required");
+      const manager = env.MANAGER.get(env.MANAGER.idFromName(chatId));
+      return manager.fetch("https://manager/debug");
+    }
+
     if (request.method === "GET" && url.pathname === "/debug/orchestrator") {
       const chatId = getChatIdParam(url);
       if (!chatId) return badRequest("chat_id is required");
-      const orchestrator = env.ORCHESTRATOR.get(env.ORCHESTRATOR.idFromName(chatId));
+      const key = buildKey(chatId, getThreadIdParam(url));
+      const orchestrator = env.ORCHESTRATOR.get(env.ORCHESTRATOR.idFromName(key));
       return orchestrator.fetch("https://orchestrator/debug");
     }
 
     if (request.method === "POST" && url.pathname === "/debug/orchestrator/reset") {
       const chatId = getChatIdParam(url);
       if (!chatId) return badRequest("chat_id is required");
-      const orchestrator = env.ORCHESTRATOR.get(env.ORCHESTRATOR.idFromName(chatId));
+      const key = buildKey(chatId, getThreadIdParam(url));
+      const orchestrator = env.ORCHESTRATOR.get(env.ORCHESTRATOR.idFromName(key));
       return orchestrator.fetch("https://orchestrator/debug/reset", { method: "POST" });
     }
 
     if (request.method === "GET" && url.pathname === "/debug/container") {
       const chatId = getChatIdParam(url);
       if (!chatId) return badRequest("chat_id is required");
-      const container = env.AGENT_CONTAINER.get(env.AGENT_CONTAINER.idFromName(chatId));
+      const key = buildKey(chatId, getThreadIdParam(url));
+      const container = env.AGENT_CONTAINER.get(env.AGENT_CONTAINER.idFromName(key));
       const [statusResponse, healthResponse] = await Promise.all([
         container.fetch("https://container/status"),
         container.fetch("https://container/health"),
@@ -84,21 +110,24 @@ export default {
     if (request.method === "GET" && url.pathname === "/debug/container/env") {
       const chatId = getChatIdParam(url);
       if (!chatId) return badRequest("chat_id is required");
-      const container = env.AGENT_CONTAINER.get(env.AGENT_CONTAINER.idFromName(chatId));
+      const key = buildKey(chatId, getThreadIdParam(url));
+      const container = env.AGENT_CONTAINER.get(env.AGENT_CONTAINER.idFromName(key));
       return container.fetch("https://container/debug/env");
     }
 
     if (request.method === "POST" && url.pathname === "/debug/container/stop") {
       const chatId = getChatIdParam(url);
       if (!chatId) return badRequest("chat_id is required");
-      const container = env.AGENT_CONTAINER.get(env.AGENT_CONTAINER.idFromName(chatId));
+      const key = buildKey(chatId, getThreadIdParam(url));
+      const container = env.AGENT_CONTAINER.get(env.AGENT_CONTAINER.idFromName(key));
       return container.fetch("https://container/stop", { method: "POST" });
     }
 
     if (request.method === "GET" && url.pathname === "/debug/container/ping") {
       const chatId = getChatIdParam(url);
       if (!chatId) return badRequest("chat_id is required");
-      const container = env.AGENT_CONTAINER.get(env.AGENT_CONTAINER.idFromName(chatId));
+      const key = buildKey(chatId, getThreadIdParam(url));
+      const container = env.AGENT_CONTAINER.get(env.AGENT_CONTAINER.idFromName(key));
       return container.fetch("https://container/ping");
     }
 
@@ -123,7 +152,26 @@ export default {
         return ok({ status: "ignored" });
       }
 
-      const orchestratorId = env.ORCHESTRATOR.idFromName(String(chatId));
+      const managerId = env.MANAGER.idFromName(String(chatId));
+      const manager = env.MANAGER.get(managerId);
+      try {
+        const managerResponse = await manager.fetch("https://manager/handle", {
+          method: "POST",
+          headers: jsonHeaders,
+          body: JSON.stringify(update),
+        });
+        if (managerResponse.ok) {
+          const payload = (await managerResponse.json()) as { handled?: boolean };
+          if (payload.handled === true) {
+            return ok({ status: "accepted", handled: "manager" });
+          }
+        }
+      } catch (error) {
+        console.error("Manager handler failed:", error);
+      }
+
+      const threadId = getTelegramThreadId(update);
+      const orchestratorId = env.ORCHESTRATOR.idFromName(buildTelegramChatKey(chatId, threadId));
       const orchestrator = env.ORCHESTRATOR.get(orchestratorId);
       ctx.waitUntil(
         orchestrator.fetch("https://orchestrator/handle", {

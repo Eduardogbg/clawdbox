@@ -63,17 +63,24 @@ const Orchestrator = Cloudflare.DurableObject.Namespace("Orchestrator", {
   sqlite: true,
 });
 
+const Manager = Cloudflare.DurableObject.Namespace("Manager", {
+  className: "ManagerDO",
+  sqlite: true,
+});
+
 const requireAgentContainer = declare<
   Cloudflare.Container.Bind<typeof AgentContainer>
 >();
 const requireOrchestrator = declare<
   Cloudflare.DurableObject.Bind<typeof Orchestrator>
 >();
+const requireManager = declare<Cloudflare.DurableObject.Bind<typeof Manager>>();
 
 class AgentWorker extends Cloudflare.Worker.serve("AgentWorker", {
   fetch: Effect.fn(function* () {
     yield* requireAgentContainer;
     yield* requireOrchestrator;
+    yield* requireManager;
     return new Response("ok");
   }),
 })({
@@ -86,6 +93,7 @@ class AgentWorker extends Cloudflare.Worker.serve("AgentWorker", {
     OPENAI_API_KEY: process.env.OPENAI_API_KEY ?? process.env.CODEX_API_KEY ?? "",
     CODEX_PROFILE: process.env.CODEX_PROFILE ?? "",
     CODEX_ARGS: process.env.CODEX_ARGS ?? "",
+    MANAGER_CLI_TOKEN: process.env.MANAGER_CLI_TOKEN ?? "",
     CONTAINER_WORKDIR: process.env.CONTAINER_WORKDIR ?? "",
     CONTAINER_REPO_URL: process.env.CONTAINER_REPO_URL ?? "",
     CONTAINER_REPO_BRANCH: process.env.CONTAINER_REPO_BRANCH ?? "",
@@ -98,14 +106,15 @@ class AgentWorker extends Cloudflare.Worker.serve("AgentWorker", {
   bindings: $(
     Cloudflare.Container.Bind(AgentContainer),
     Cloudflare.DurableObject.Bind(Orchestrator),
+    Cloudflare.DurableObject.Bind(Manager),
   ),
   compatibility: {
     date: "2024-12-01",
     flags: ["nodejs_compat"],
   },
   migrations: {
-    new_tag: "v1",
-    new_sqlite_classes: ["AgentContainerDO", "OrchestratorDO"],
+    new_tag: "v2",
+    new_sqlite_classes: ["ManagerDO"],
   },
   subdomain: { enabled: true },
 }) {}

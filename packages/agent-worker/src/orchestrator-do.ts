@@ -7,7 +7,11 @@ import { pipe } from "effect/Function";
 import * as S from "effect/Schema";
 
 import { ExecProgressRenderer, isCodexEvent } from "./codex-progress.js";
-import { createTelegramClient, decodeTelegramUpdate } from "./telegram.js";
+import {
+  buildTelegramChatKey,
+  createTelegramClient,
+  decodeTelegramUpdate,
+} from "./telegram.js";
 import { TELEGRAM_LIMIT, truncateForTelegram, withResumeLine } from "./telegram-render.js";
 import type { ChatState, Env, QueueItem, RunRequest } from "./types.js";
 
@@ -25,6 +29,7 @@ const SQL = {
     CREATE TABLE IF NOT EXISTS message_queue (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       message_id INTEGER NOT NULL,
+      message_thread_id INTEGER,
       text TEXT NOT NULL,
       created_at INTEGER NOT NULL
     );
@@ -42,6 +47,10 @@ const SQL = {
     );
     INSERT OR IGNORE INTO run_debug (id) VALUES (1);
   `,
+  ALTER_QUEUE_ADD_THREAD: `
+    ALTER TABLE message_queue
+    ADD COLUMN message_thread_id INTEGER
+  `,
   GET_STATE: `
     SELECT session_id, session_epoch, active_run, updated_at
     FROM chat_state
@@ -56,11 +65,11 @@ const SQL = {
     SELECT COUNT(*) as count FROM message_queue
   `,
   ENQUEUE: `
-    INSERT INTO message_queue (message_id, text, created_at)
-    VALUES (?, ?, ?)
+    INSERT INTO message_queue (message_id, message_thread_id, text, created_at)
+    VALUES (?, ?, ?, ?)
   `,
   DEQUEUE: `
-    SELECT id, message_id, text, created_at
+    SELECT id, message_id, message_thread_id, text, created_at
     FROM message_queue
     ORDER BY id ASC
     LIMIT 1
@@ -223,6 +232,7 @@ const dequeueMessage = (sql: DurableObjectStorage["sql"]): QueueItem | null => {
   const item: QueueItem = {
     id: row.id as number,
     messageId: row.message_id as number,
+    threadId: (row.message_thread_id as number | null) ?? null,
     text: row.text as string,
     createdAt: row.created_at as number,
   };
@@ -233,12 +243,18 @@ const dequeueMessage = (sql: DurableObjectStorage["sql"]): QueueItem | null => {
 export class OrchestratorDO extends DurableObject<Env> {
   private initialized = false;
   private chatId: number | null = null;
+  private chatKey: string | null = null;
   private processing = false;
   private currentAbort: AbortController | null = null;
 
   private ensureInitialized(): void {
     if (this.initialized) return;
     this.ctx.storage.sql.exec(SQL.INIT);
+    try {
+      this.ctx.storage.sql.exec(SQL.ALTER_QUEUE_ADD_THREAD);
+    } catch {
+      // ignore when column already exists
+    }
     this.initialized = true;
   }
 
@@ -260,20 +276,36 @@ export class OrchestratorDO extends DurableObject<Env> {
       }
 
       this.chatId = message.chat.id;
+      this.chatKey = buildTelegramChatKey(
+        message.chat.id,
+        message.message_thread_id ?? null,
+      );
       const text = message.text.trim();
-      const command = this.parseCommand(text);
-      if (command === "new") {
-        await this.handleNewSession(message.message_id);
+      const parsed = this.parseCommand(text);
+      if (parsed?.command === "new") {
+        await this.handleNewSession(message.message_id, message.message_thread_id ?? null);
         return new Response("ok");
       }
-      if (command === "help") {
-        await this.handleHelp(message.message_id);
+      if (parsed?.command === "help") {
+        await this.handleHelp(message.message_id, message.message_thread_id ?? null);
+        return new Response("ok");
+      }
+      if (parsed?.command === "rename") {
+        await this.handleRename(
+          message.message_id,
+          message.message_thread_id ?? null,
+          parsed.args,
+        );
         return new Response("ok");
       }
 
-      const queued = await this.enqueueMessage(message.message_id, text);
+      const queued = await this.enqueueMessage(
+        message.message_id,
+        message.message_thread_id ?? null,
+        text,
+      );
       if (!queued) {
-        await this.sendQueueFull(message.message_id);
+        await this.sendQueueFull(message.message_id, message.message_thread_id ?? null);
         return new Response("ok");
       }
 
@@ -291,6 +323,7 @@ export class OrchestratorDO extends DurableObject<Env> {
     return new Response(
       JSON.stringify({
         chatId: this.chatId,
+        chatKey: this.chatKey,
         processing: this.processing,
         queueCount,
         state,
@@ -323,14 +356,15 @@ export class OrchestratorDO extends DurableObject<Env> {
     this.currentAbort = null;
   }
 
-  private parseCommand(text: string): string | null {
+  private parseCommand(text: string): { command: string; args: string } | null {
     if (!text.startsWith("/")) return null;
-    const [raw] = text.split(/\s+/, 1);
+    const [raw, ...rest] = text.split(/\s+/);
     const command = raw?.slice(1).split("@")[0];
-    return command ?? null;
+    if (!command) return null;
+    return { command, args: rest.join(" ").trim() };
   }
 
-  private async handleNewSession(messageId: number): Promise<void> {
+  private async handleNewSession(messageId: number, threadId: number | null): Promise<void> {
     const sql = this.ctx.storage.sql;
     sql.exec(SQL.CLEAR_QUEUE);
     const state = getChatState(sql);
@@ -345,30 +379,84 @@ export class OrchestratorDO extends DurableObject<Env> {
     await this.sendTelegramMessage({
       text: "new session ready",
       replyTo: messageId,
+      threadId,
     });
   }
 
-  private async handleHelp(messageId: number): Promise<void> {
+  private async handleHelp(messageId: number, threadId: number | null): Promise<void> {
     await this.sendTelegramMessage({
-      text: "commands: /new (reset session)",
+      text: [
+        "commands:",
+        "/new (reset session)",
+        "/rename <title>",
+        "/settings (set this topic as settings thread)",
+        "/auth (store Cloudflare + Codex keys)",
+      ].join("\n"),
       replyTo: messageId,
+      threadId,
     });
   }
 
-  private async enqueueMessage(messageId: number, text: string): Promise<boolean> {
+  private async handleRename(
+    messageId: number,
+    threadId: number | null,
+    title: string,
+  ): Promise<void> {
+    const chatId = this.chatId;
+    if (chatId === null) return;
+    const trimmed = title.trim();
+    if (!threadId) {
+      await this.sendTelegramMessage({
+        text: "rename only works inside a topic",
+        replyTo: messageId,
+        threadId,
+      });
+      return;
+    }
+    if (!trimmed) {
+      await this.sendTelegramMessage({
+        text: "usage: /rename <title>",
+        replyTo: messageId,
+        threadId,
+      });
+      return;
+    }
+    const safeTitle = trimmed.slice(0, 128);
+    const telegram = createTelegramClient(this.env.TELEGRAM_BOT_TOKEN);
+    await pipe(
+      telegram.editForumTopic({
+        chat_id: chatId,
+        message_thread_id: threadId,
+        name: safeTitle,
+      }),
+      Effect.runPromise,
+    );
+    await this.sendTelegramMessage({
+      text: `renamed topic to "${safeTitle}"`,
+      replyTo: messageId,
+      threadId,
+    });
+  }
+
+  private async enqueueMessage(
+    messageId: number,
+    threadId: number | null,
+    text: string,
+  ): Promise<boolean> {
     const sql = this.ctx.storage.sql;
     const limit = this.getMaxQueueSize();
     if (getQueueCount(sql) >= limit) {
       return false;
     }
-    sql.exec(SQL.ENQUEUE, messageId, text, Date.now());
+    sql.exec(SQL.ENQUEUE, messageId, threadId, text, Date.now());
     return true;
   }
 
-  private async sendQueueFull(messageId: number): Promise<void> {
+  private async sendQueueFull(messageId: number, threadId: number | null): Promise<void> {
     await this.sendTelegramMessage({
       text: "queue full, try again soon",
       replyTo: messageId,
+      threadId,
     });
   }
 
@@ -445,12 +533,13 @@ export class OrchestratorDO extends DurableObject<Env> {
     const prompt = item.text;
     console.log("[orchestrator] run start", {
       chatId: this.chatId,
+      threadId: item.threadId,
       messageId: item.messageId,
       promptSize: prompt.length,
       hasSession: Boolean(state.sessionId),
     });
 
-    const progressId = await this.sendProgressMessage(item.messageId);
+    const progressId = await this.sendProgressMessage(item.messageId, item.threadId);
     this.recordRunStart(item.messageId, progressId);
     if (!progressId) return;
 
@@ -567,7 +656,7 @@ export class OrchestratorDO extends DurableObject<Env> {
       const needsNewMessage = finalText.length > TELEGRAM_LIMIT;
       const truncated = truncateForTelegram(finalText);
 
-      await this.finishProgress(progressId, truncated, needsNewMessage);
+      await this.finishProgress(progressId, truncated, needsNewMessage, item.threadId);
 
       const latestState = getChatState(sql);
       if (latestState.sessionEpoch === startEpoch) {
@@ -660,12 +749,16 @@ export class OrchestratorDO extends DurableObject<Env> {
     }
   }
 
-  private async sendProgressMessage(replyToMessageId: number): Promise<number | null> {
+  private async sendProgressMessage(
+    replyToMessageId: number,
+    threadId: number | null,
+  ): Promise<number | null> {
     const progress = truncateForTelegram("working - 0s");
     const result = await this.sendTelegramMessage({
       text: progress,
       replyTo: replyToMessageId,
       silent: true,
+      threadId,
     });
     return result?.message_id ?? null;
   }
@@ -679,13 +772,14 @@ export class OrchestratorDO extends DurableObject<Env> {
     messageId: number,
     text: string,
     sendNewMessage: boolean,
+    threadId: number | null,
   ): Promise<void> {
     if (!sendNewMessage) {
       await this.sendTelegramEdit({ messageId, text });
       return;
     }
 
-    await this.sendTelegramMessage({ text, replyTo: messageId });
+    await this.sendTelegramMessage({ text, replyTo: messageId, threadId });
     await this.deleteTelegramMessage(messageId);
   }
 
@@ -693,6 +787,7 @@ export class OrchestratorDO extends DurableObject<Env> {
     text: string;
     replyTo?: number;
     silent?: boolean;
+    threadId?: number | null;
   }): Promise<{ message_id: number } | null> {
     const chatId = this.chatId;
     if (chatId === null) return null;
@@ -702,6 +797,7 @@ export class OrchestratorDO extends DurableObject<Env> {
         telegram.sendMessage({
           chat_id: chatId,
           text: input.text,
+          message_thread_id: input.threadId ?? undefined,
           reply_to_message_id: input.replyTo,
           allow_sending_without_reply: input.replyTo ? true : undefined,
           disable_notification: input.silent,
@@ -712,6 +808,7 @@ export class OrchestratorDO extends DurableObject<Env> {
     } catch (error) {
       console.error("[orchestrator] telegram send failed", {
         chatId,
+        threadId: input.threadId ?? null,
         replyTo: input.replyTo ?? null,
         error: error instanceof Error ? error.message : String(error),
       });
@@ -759,8 +856,8 @@ export class OrchestratorDO extends DurableObject<Env> {
   }
 
   private getContainerStub() {
-    const chatId = this.chatId ?? 0;
-    const containerId = this.env.AGENT_CONTAINER.idFromName(String(chatId));
+    const key = this.chatKey ?? String(this.chatId ?? 0);
+    const containerId = this.env.AGENT_CONTAINER.idFromName(key);
     return this.env.AGENT_CONTAINER.get(containerId);
   }
 

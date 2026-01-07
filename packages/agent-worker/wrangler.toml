@@ -26,10 +26,15 @@ class_name = "AgentContainerDO"
 name = "ORCHESTRATOR"
 class_name = "OrchestratorDO"
 
+# Manager DO (settings/credentials)
+[[durable_objects.bindings]]
+name = "MANAGER"
+class_name = "ManagerDO"
+
 # SQLite storage for Container DOs (required for containers)
 [[migrations]]
-tag = "v1"
-new_sqlite_classes = ["AgentContainerDO", "OrchestratorDO"]
+tag = "v2"
+new_sqlite_classes = ["ManagerDO"]
 
 # Secrets Store binding (for accessing API keys)
 # [[secrets_stores.bindings]]

@@ -81,6 +81,7 @@ const DevEnvSchema = S.Struct({
   OPENAI_API_KEY: S.optional(S.String),
   CODEX_PROFILE: S.optional(S.String),
   CODEX_ARGS: S.optional(S.String),
+  MANAGER_CLI_TOKEN: S.optional(S.String),
   CONTAINER_WORKDIR: S.optional(S.String),
   CONTAINER_REPO_URL: S.optional(S.String),
   CONTAINER_REPO_BRANCH: S.optional(S.String),
@@ -455,6 +456,7 @@ const buildVarsArgs = (env: DevEnv): string[] => {
     OPENAI_API_KEY: apiKey,
     CODEX_PROFILE: env.CODEX_PROFILE,
     CODEX_ARGS: env.CODEX_ARGS,
+    MANAGER_CLI_TOKEN: env.MANAGER_CLI_TOKEN,
     CONTAINER_WORKDIR: env.CONTAINER_WORKDIR,
     CONTAINER_REPO_URL: env.CONTAINER_REPO_URL,
     CONTAINER_REPO_BRANCH: env.CONTAINER_REPO_BRANCH,
@@ -535,6 +537,9 @@ const deployDev = Effect.gen(function* () {
   yield* setBotCommands(env.TELEGRAM_BOT_TOKEN, [
     { command: "new", description: "Start a fresh session" },
     { command: "help", description: "Show available commands" },
+    { command: "settings", description: "Set this topic as the settings thread" },
+    { command: "auth", description: "Store Cloudflare + Codex credentials" },
+    { command: "rename", description: "Rename the current topic" },
   ]);
   yield* Effect.logInfo("=== Dev environment ready (webhook set) ===");
 });

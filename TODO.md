@@ -64,6 +64,20 @@
 - [x] Add worker/container env debug endpoints and DO env snapshots
 - [x] Bridge Bun.env to process.env for Codex API key detection
 - [x] Register Telegram bot commands (/new, /help) during dev deploy
+- [x] Route orchestrators/containers by topic thread id and honor message_thread_id in replies
+- [x] Add /rename command for forum topics
+
+## Current Session: 006 Management
+
+### In Progress
+- [ ] Define usage/visibility endpoints for sessions/containers
+
+### Completed
+- [x] Create scoped Cloudflare deployer token for dev env provisioning
+- [x] Document management architecture draft (docs/tasks/006_management/001_deliberation.md)
+- [x] Draft Manager DO schema + CLI auth flow for per-tenant settings
+- [x] Add settings-thread routing and /settings bootstrap command
+- [x] Add /auth onboarding flow via Manager DO
 
 ## Current Session: Post-Ralph Cleanup
 
