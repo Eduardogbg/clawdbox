@@ -78,6 +78,12 @@
 - [x] Draft Manager DO schema + CLI auth flow for per-tenant settings
 - [x] Add settings-thread routing and /settings bootstrap command
 - [x] Add /auth onboarding flow via Manager DO
+- [x] Add local runner mode + /resume + /cwd + local dev helper
+
+## Current Session: 007 Takopi Feature Audit
+
+### Completed
+- [x] Document upstream takopi feature delta + codex app-server bidirectional notes
 
 ## Current Session: Post-Ralph Cleanup
 

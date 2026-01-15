@@ -5,7 +5,9 @@
 - `/settings` sets the canonical settings thread (topic-only) and routes settings commands to Manager DO.
 - `/auth` now runs an interactive flow in the settings topic (or private chat) to store Cloudflare + Codex keys.
 - CLI onboarding helper added (`bun run manager:auth`) to post credentials to `/cli/register`.
-- Bot commands include `/settings`, `/auth`, and `/rename` for dev deploys.
+- Bot commands include `/settings`, `/auth`, `/resume`, and `/rename` for dev deploys.
+- Local runner mode: set `LOCAL_RUNNER_URL` for the agent worker to call a locally running agent-container server.
+- Local helper: `cd packages/iac && bun run dev:local` starts agent-container + agent-worker locally, runs `cloudflared tunnel --url http://127.0.0.1:8787`, and auto-sets the Telegram webhook to the tunnel URL.
 - Cloudflare deployer token created (shared out-of-band; not stored in repo).
 
 ## Key files

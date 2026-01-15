@@ -9,6 +9,7 @@
     "destroy": "bun run src/deploy.ts --destroy",
     "dev:env": "bun run src/dev-environment.ts",
     "dev:destroy": "bun run src/dev-environment.ts --destroy",
+    "dev:local": "bun run src/local-mode.ts",
     "manager:auth": "bun run src/manager-auth.ts",
     "typecheck": "tsc --noEmit",
     "test": "bun test",

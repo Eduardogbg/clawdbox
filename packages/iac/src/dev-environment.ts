@@ -536,6 +536,8 @@ const deployDev = Effect.gen(function* () {
   yield* setWebhook(env.TELEGRAM_BOT_TOKEN, `${workerUrl}/webhook`, env.TELEGRAM_SECRET_TOKEN);
   yield* setBotCommands(env.TELEGRAM_BOT_TOKEN, [
     { command: "new", description: "Start a fresh session" },
+    { command: "resume", description: "Resume a session by id" },
+    { command: "cwd", description: "Set working directory (local only)" },
     { command: "help", description: "Show available commands" },
     { command: "settings", description: "Set this topic as the settings thread" },
     { command: "auth", description: "Store Cloudflare + Codex credentials" },

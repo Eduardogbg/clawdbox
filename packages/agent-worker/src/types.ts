@@ -15,6 +15,7 @@ export interface Env {
   OPENAI_API_KEY?: string;
   CODEX_ARGS?: string;
   CODEX_PROFILE?: string;
+  LOCAL_RUNNER_URL?: string;
   MANAGER_CLI_TOKEN?: string;
   CONTAINER_WORKDIR?: string;
   CONTAINER_REPO_URL?: string;
@@ -56,6 +57,7 @@ export interface ChatState {
   sessionEpoch: number;
   activeRun: number;
   updatedAt: number | null;
+  workdir: string | null;
 }
 
 export interface QueueItem {

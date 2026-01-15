@@ -22,7 +22,8 @@ const SQL = {
       session_id TEXT,
       session_epoch INTEGER NOT NULL DEFAULT 0,
       active_run INTEGER NOT NULL DEFAULT 0,
-      updated_at INTEGER
+      updated_at INTEGER,
+      workdir TEXT
     );
     INSERT OR IGNORE INTO chat_state (id) VALUES (1);
 
@@ -51,14 +52,18 @@ const SQL = {
     ALTER TABLE message_queue
     ADD COLUMN message_thread_id INTEGER
   `,
+  ALTER_STATE_ADD_WORKDIR: `
+    ALTER TABLE chat_state
+    ADD COLUMN workdir TEXT
+  `,
   GET_STATE: `
-    SELECT session_id, session_epoch, active_run, updated_at
+    SELECT session_id, session_epoch, active_run, updated_at, workdir
     FROM chat_state
     WHERE id = 1
   `,
   UPDATE_STATE: `
     UPDATE chat_state
-    SET session_id = ?, session_epoch = ?, active_run = ?, updated_at = ?
+    SET session_id = ?, session_epoch = ?, active_run = ?, updated_at = ?, workdir = ?
     WHERE id = 1
   `,
   QUEUE_COUNT: `
@@ -155,18 +160,32 @@ const getQueueCount = (sql: DurableObjectStorage["sql"]): number => {
 const getChatState = (sql: DurableObjectStorage["sql"]): ChatState => {
   const row = sql.exec(SQL.GET_STATE).one();
   if (!row) {
-    return { sessionId: null, sessionEpoch: 0, activeRun: 0, updatedAt: null };
+    return {
+      sessionId: null,
+      sessionEpoch: 0,
+      activeRun: 0,
+      updatedAt: null,
+      workdir: null,
+    };
   }
   return {
     sessionId: row.session_id as string | null,
     sessionEpoch: row.session_epoch as number,
     activeRun: row.active_run as number,
     updatedAt: row.updated_at as number | null,
+    workdir: (row.workdir as string | null) ?? null,
   };
 };
 
 const setChatState = (sql: DurableObjectStorage["sql"], state: ChatState): void => {
-  sql.exec(SQL.UPDATE_STATE, state.sessionId, state.sessionEpoch, state.activeRun, state.updatedAt);
+  sql.exec(
+    SQL.UPDATE_STATE,
+    state.sessionId,
+    state.sessionEpoch,
+    state.activeRun,
+    state.updatedAt,
+    state.workdir,
+  );
 };
 
 type RunDebug = {
@@ -255,6 +274,11 @@ export class OrchestratorDO extends DurableObject<Env> {
     } catch {
       // ignore when column already exists
     }
+    try {
+      this.ctx.storage.sql.exec(SQL.ALTER_STATE_ADD_WORKDIR);
+    } catch {
+      // ignore when column already exists
+    }
     this.initialized = true;
   }
 
@@ -284,6 +308,22 @@ export class OrchestratorDO extends DurableObject<Env> {
       const parsed = this.parseCommand(text);
       if (parsed?.command === "new") {
         await this.handleNewSession(message.message_id, message.message_thread_id ?? null);
+        return new Response("ok");
+      }
+      if (parsed?.command === "resume") {
+        await this.handleResume(
+          message.message_id,
+          message.message_thread_id ?? null,
+          parsed.args,
+        );
+        return new Response("ok");
+      }
+      if (parsed?.command === "cwd") {
+        await this.handleCwd(
+          message.message_id,
+          message.message_thread_id ?? null,
+          parsed.args,
+        );
         return new Response("ok");
       }
       if (parsed?.command === "help") {
@@ -373,6 +413,7 @@ export class OrchestratorDO extends DurableObject<Env> {
       sessionEpoch: state.sessionEpoch + 1,
       activeRun: state.activeRun,
       updatedAt: Date.now(),
+      workdir: state.workdir,
     };
     setChatState(sql, updated);
 
@@ -383,15 +424,90 @@ export class OrchestratorDO extends DurableObject<Env> {
     });
   }
 
+  private async handleResume(
+    messageId: number,
+    threadId: number | null,
+    resumeId: string,
+  ): Promise<void> {
+    const trimmed = resumeId.trim();
+    const sql = this.ctx.storage.sql;
+    const state = getChatState(sql);
+    if (!trimmed) {
+      const current = state.sessionId;
+      await this.sendTelegramMessage({
+        text: current ? `usage: /resume <id>\ncurrent: ${current}` : "usage: /resume <id>",
+        replyTo: messageId,
+        threadId,
+      });
+      return;
+    }
+    sql.exec(SQL.CLEAR_QUEUE);
+    setChatState(sql, {
+      ...state,
+      sessionId: trimmed,
+      sessionEpoch: state.sessionEpoch + 1,
+      updatedAt: Date.now(),
+    });
+    await this.sendTelegramMessage({
+      text: `resumed session ${trimmed}`,
+      replyTo: messageId,
+      threadId,
+    });
+  }
+
   private async handleHelp(messageId: number, threadId: number | null): Promise<void> {
     await this.sendTelegramMessage({
       text: [
         "commands:",
         "/new (reset session)",
+        "/resume <id>",
+        "/cwd <path> (local only)",
         "/rename <title>",
         "/settings (set this topic as settings thread)",
         "/auth (store Cloudflare + Codex keys)",
       ].join("\n"),
+      replyTo: messageId,
+      threadId,
+    });
+  }
+
+  private async handleCwd(
+    messageId: number,
+    threadId: number | null,
+    input: string,
+  ): Promise<void> {
+    if (!this.getLocalRunnerUrl()) {
+      await this.sendTelegramMessage({
+        text: "cwd is only available in local mode",
+        replyTo: messageId,
+        threadId,
+      });
+      return;
+    }
+    const sql = this.ctx.storage.sql;
+    const state = getChatState(sql);
+    const trimmed = input.trim();
+    if (!trimmed) {
+      const current = state.workdir ?? this.env.CONTAINER_WORKDIR ?? "(default)";
+      await this.sendTelegramMessage({
+        text: `current cwd: ${current}`,
+        replyTo: messageId,
+        threadId,
+      });
+      return;
+    }
+    if (trimmed === "reset" || trimmed === "default") {
+      setChatState(sql, { ...state, workdir: null, updatedAt: Date.now() });
+      await this.sendTelegramMessage({
+        text: "cwd reset to default",
+        replyTo: messageId,
+        threadId,
+      });
+      return;
+    }
+    setChatState(sql, { ...state, workdir: trimmed, updatedAt: Date.now() });
+    await this.sendTelegramMessage({
+      text: `cwd set to ${trimmed}`,
       replyTo: messageId,
       threadId,
     });
@@ -492,7 +608,7 @@ export class OrchestratorDO extends DurableObject<Env> {
         activeRun: 0,
         updatedAt: Date.now(),
       });
-      if (this.chatId !== null) {
+      if (this.chatId !== null && !this.getLocalRunnerUrl()) {
         try {
           await this.getContainerStub().fetch("https://container/stop", { method: "POST" });
         } catch (error) {
@@ -546,7 +662,9 @@ export class OrchestratorDO extends DurableObject<Env> {
     const runRequest: RunRequest = {
       prompt,
       sessionId: state.sessionId ?? undefined,
-      workdir: this.env.CONTAINER_WORKDIR,
+      workdir: this.getLocalRunnerUrl()
+        ? state.workdir ?? this.env.CONTAINER_WORKDIR
+        : this.env.CONTAINER_WORKDIR,
     };
 
     const abortController = new AbortController();
@@ -882,12 +1000,21 @@ export class OrchestratorDO extends DurableObject<Env> {
     runRequest: RunRequest,
     controller: AbortController,
   ): Promise<Response> {
+    const localRunnerUrl = this.getLocalRunnerUrl();
     const timeoutMs = this.getRunStartTimeoutMs();
     const timer = setTimeout(
       () => controller.abort(`container run start timed out after ${timeoutMs}ms`),
       timeoutMs,
     );
     try {
+      if (localRunnerUrl) {
+        return await fetch(`${localRunnerUrl}/run`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(runRequest),
+          signal: controller.signal,
+        });
+      }
       return await this.getContainerStub().fetch("https://container/run", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -911,6 +1038,25 @@ export class OrchestratorDO extends DurableObject<Env> {
 
   private async fetchContainerState(): Promise<S.Schema.Type<typeof ContainerStateSchema> | null> {
     if (this.chatId === null) return null;
+    const localRunnerUrl = this.getLocalRunnerUrl();
+    if (localRunnerUrl) {
+      try {
+        const response = await fetch(`${localRunnerUrl}/health`);
+        if (!response.ok) return null;
+        return {
+          status: "running",
+          instanceId: "local",
+          startedAt: null,
+          stoppedAt: null,
+          error: null,
+        };
+      } catch (error) {
+        console.error("[orchestrator] local runner health failed", {
+          error: error instanceof Error ? error.message : String(error),
+        });
+        return null;
+      }
+    }
     try {
       const response = await this.getContainerStub().fetch("https://container/status");
       if (!response.ok) return null;
@@ -941,6 +1087,12 @@ export class OrchestratorDO extends DurableObject<Env> {
     const raw = this.env.PROGRESS_EDIT_MS;
     const parsed = raw ? Number(raw) : 2000;
     return Number.isFinite(parsed) && parsed > 0 ? parsed : 2000;
+  }
+
+  private getLocalRunnerUrl(): string | null {
+    const raw = this.env.LOCAL_RUNNER_URL;
+    if (!raw) return null;
+    return raw.endsWith("/") ? raw.slice(0, -1) : raw;
   }
 
   private recordRunStart(messageId: number, progressId: number | null): void {
